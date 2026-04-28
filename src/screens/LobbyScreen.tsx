@@ -12,12 +12,10 @@ import { colors, spacing } from "../utils/theme";
 export default function LobbyScreen() {
   const [isStarting, setIsStarting] = useState(false);
 
-  const { player, room, errorMessage, setErrorMessage } = useGameStore((state) => ({
-    player: state.player,
-    room: state.room,
-    errorMessage: state.errorMessage,
-    setErrorMessage: state.setErrorMessage
-  }));
+  const player = useGameStore((state) => state.player);
+  const room = useGameStore((state) => state.room);
+  const errorMessage = useGameStore((state) => state.errorMessage);
+  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
 
   const isHost = useMemo(() => {
     if (!player || !room) {
@@ -152,4 +150,3 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   }
 });
-

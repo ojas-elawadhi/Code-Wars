@@ -14,12 +14,10 @@ export default function HomeScreen() {
   const [roomId, setRoomId] = useState("");
   const [loadingAction, setLoadingAction] = useState<"create" | "join" | null>(null);
 
-  const { isConnected, errorMessage, setErrorMessage, setSession } = useGameStore((state) => ({
-    isConnected: state.isConnected,
-    errorMessage: state.errorMessage,
-    setErrorMessage: state.setErrorMessage,
-    setSession: state.setSession
-  }));
+  const isConnected = useGameStore((state) => state.isConnected);
+  const errorMessage = useGameStore((state) => state.errorMessage);
+  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
+  const setSession = useGameStore((state) => state.setSession);
 
   const handleCreateRoom = async () => {
     try {
@@ -153,4 +151,3 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   }
 });
-

@@ -9,11 +9,9 @@ import { useGameStore } from "../store/useGameStore";
 import { colors, spacing } from "../utils/theme";
 
 export default function ResultScreen() {
-  const { player, room, resetRoundState } = useGameStore((state) => ({
-    player: state.player,
-    room: state.room,
-    resetRoundState: state.resetRoundState
-  }));
+  const player = useGameStore((state) => state.player);
+  const room = useGameStore((state) => state.room);
+  const resetRoundState = useGameStore((state) => state.resetRoundState);
 
   useEffect(() => {
     if (!player || !room) {
@@ -95,4 +93,3 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   }
 });
-

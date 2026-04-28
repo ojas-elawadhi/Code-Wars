@@ -13,15 +13,12 @@ export default function GameScreen() {
   const [guess, setGuess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { player, room, lastGuessResult, guessHistory, errorMessage, setErrorMessage } =
-    useGameStore((state) => ({
-      player: state.player,
-      room: state.room,
-      lastGuessResult: state.lastGuessResult,
-      guessHistory: state.guessHistory,
-      errorMessage: state.errorMessage,
-      setErrorMessage: state.setErrorMessage
-    }));
+  const player = useGameStore((state) => state.player);
+  const room = useGameStore((state) => state.room);
+  const lastGuessResult = useGameStore((state) => state.lastGuessResult);
+  const guessHistory = useGameStore((state) => state.guessHistory);
+  const errorMessage = useGameStore((state) => state.errorMessage);
+  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
 
   useEffect(() => {
     if (!player || !room) {
@@ -99,7 +96,9 @@ export default function GameScreen() {
         ) : (
           guessHistory.map((entry, index) => (
             <Text key={`${entry.guess}-${index}`} style={styles.historyItem}>
-              {entry.guess} → {entry.result}
+              {entry.guess}
+              {" -> "}
+              {entry.result}
             </Text>
           ))
         )}
@@ -166,4 +165,3 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   }
 });
-
