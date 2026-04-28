@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Higher Lower Multiplayer",
+    "slug": "higher-lower-multiplayer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "higherlower",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
+
