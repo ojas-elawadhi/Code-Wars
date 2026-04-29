@@ -10,6 +10,7 @@ import { registerGameSocketHandlers } from "./sockets/game.socket";
 import type { ClientToServerEvents, ServerToClientEvents } from "./types/game.types";
 
 const PORT = Number(process.env.PORT ?? 3001);
+const HOST = process.env.HOST ?? "0.0.0.0";
 const configuredOrigins = (process.env.CLIENT_ORIGIN ?? "*")
   .split(",")
   .map((origin) => origin.trim())
@@ -25,6 +26,13 @@ app.use(
   })
 );
 
+app.get("/", (_request, response) => {
+  response.json({
+    status: "ok",
+    service: "higher-lower-server"
+  });
+});
+
 app.get("/health", getHealth);
 
 const httpServer = createServer(app);
@@ -37,6 +45,6 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 
 registerGameSocketHandlers(io);
 
-httpServer.listen(PORT, () => {
-  console.log(`Higher or Lower server listening on port ${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+  console.log(`Higher or Lower server listening on ${HOST}:${PORT}`);
 });
