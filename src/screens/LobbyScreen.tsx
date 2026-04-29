@@ -1,6 +1,8 @@
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { PlayerList } from "../components/PlayerList";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -11,6 +13,7 @@ import { colors, spacing } from "../utils/theme";
 
 export default function LobbyScreen() {
   const [isStarting, setIsStarting] = useState(false);
+  const [copySuccessMessage, setCopySuccessMessage] = useState<string | null>(null);
 
   const player = useGameStore((state) => state.player);
   const room = useGameStore((state) => state.room);
@@ -68,12 +71,42 @@ export default function LobbyScreen() {
     router.replace("/");
   };
 
+  const handleCopyCode = async () => {
+    await Clipboard.setStringAsync(room.roomId);
+    setCopySuccessMessage("Code copied");
+  };
+
+  const handleShareCode = async () => {
+    await Share.share({
+      message: `Join my Higher or Lower room with code: ${room.roomId}`
+    });
+  };
+
   return (
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.label}>Lobby</Text>
-        <Text style={styles.code}>{room.roomId}</Text>
+        <View style={styles.codeRow}>
+          <Text style={styles.code}>{room.roomId}</Text>
+          <View style={styles.codeActions}>
+            <Pressable
+              accessibilityLabel="Copy room code"
+              onPress={handleCopyCode}
+              style={({ pressed }) => [styles.codeAction, pressed && styles.codeActionPressed]}
+            >
+              <Ionicons color={colors.text} name="copy-outline" size={18} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Share room code"
+              onPress={handleShareCode}
+              style={({ pressed }) => [styles.codeAction, pressed && styles.codeActionPressed]}
+            >
+              <Ionicons color={colors.text} name="share-social-outline" size={18} />
+            </Pressable>
+          </View>
+        </View>
         <Text style={styles.copy}>Share this code so other players can join.</Text>
+        {copySuccessMessage ? <Text style={styles.copySuccess}>{copySuccessMessage}</Text> : null}
       </View>
 
       <View style={styles.section}>
@@ -124,6 +157,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     gap: spacing.xs
   },
+  codeRow: {
+    gap: spacing.sm
+  },
   label: {
     color: colors.accent,
     fontSize: 14,
@@ -136,9 +172,31 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "800"
   },
+  codeActions: {
+    flexDirection: "row",
+    gap: spacing.sm
+  },
+  codeAction: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    width: 42,
+    height: 42
+  },
+  codeActionPressed: {
+    opacity: 0.85
+  },
   copy: {
     color: colors.textMuted,
     fontSize: 15
+  },
+  copySuccess: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: "600"
   },
   section: {
     gap: spacing.md
