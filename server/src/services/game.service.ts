@@ -79,6 +79,25 @@ class GameService {
     return this.toPublicRoom(room);
   }
 
+  leaveRoom(roomId: string, playerId: string): RemovePlayerResult {
+    const normalizedRoomId = this.normalizeRoomId(roomId);
+    const currentRoomId = this.playerRooms.get(playerId);
+
+    if (!currentRoomId) {
+      return {
+        room: null,
+        deleted: false,
+        gameOver: null
+      };
+    }
+
+    if (currentRoomId !== normalizedRoomId) {
+      throw new Error("Player is not part of this room.");
+    }
+
+    return this.removePlayer(playerId);
+  }
+
   processGuess(roomId: string, playerId: string, guess: number): ProcessGuessResult {
     const room = this.requireRoom(this.normalizeRoomId(roomId));
     const player = room.players.find((currentPlayer) => currentPlayer.id === playerId);
@@ -245,4 +264,3 @@ class GameService {
 }
 
 export const gameService = new GameService();
-

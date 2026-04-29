@@ -9,14 +9,76 @@ import type {
   StartGameResponse
 } from "../types/game.types";
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:3001";
+const SOCKET_CONNECT_TIMEOUT_MS = 10000;
+const SOCKET_ACK_TIMEOUT_MS = 8000;
+
+const normalizeSocketUrl = (value?: string) => {
+  if (!value) {
+    return "http://localhost:3001";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  if (value.includes("localhost") || /^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(value)) {
+    return `http://${value}`;
+  }
+
+  return `https://${value}`;
+};
+
+const SOCKET_URL = normalizeSocketUrl(process.env.EXPO_PUBLIC_SOCKET_URL);
 
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 let listenersBound = false;
 
+const ensureConnected = async () => {
+  const activeSocket = getSocket();
+
+  if (activeSocket.connected) {
+    return activeSocket;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Could not connect to the game server. Try again in a moment."));
+    }, SOCKET_CONNECT_TIMEOUT_MS);
+
+    const handleConnect = () => {
+      cleanup();
+      resolve();
+    };
+
+    const handleConnectError = (error: Error) => {
+      cleanup();
+      reject(new Error(error.message || "Could not connect to the game server."));
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      activeSocket.off("connect", handleConnect);
+      activeSocket.off("connect_error", handleConnectError);
+    };
+
+    activeSocket.once("connect", handleConnect);
+    activeSocket.once("connect_error", handleConnectError);
+    activeSocket.connect();
+  });
+
+  return activeSocket;
+};
+
 const emitWithAck = <T>(emitter: (ack: SocketAck<T>) => void) =>
   new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Could not reach the game server. Check the backend URL and try again."));
+    }, SOCKET_ACK_TIMEOUT_MS);
+
     emitter((response) => {
+      clearTimeout(timeout);
+
       if (response.success) {
         resolve(response.data);
         return;
@@ -61,8 +123,7 @@ const bindListeners = (activeSocket: Socket<ServerToClientEvents, ClientToServer
 export const getSocket = () => {
   if (!socket) {
     socket = io(SOCKET_URL, {
-      autoConnect: false,
-      transports: ["websocket"]
+      autoConnect: false
     });
   }
 
@@ -81,22 +142,42 @@ export const connectSocket = () => {
   return activeSocket;
 };
 
-export const createRoom = (playerName: string) =>
-  emitWithAck<CreateOrJoinRoomResponse>((ack) => {
-    connectSocket().emit("create_room", { playerName }, ack);
-  });
+export const createRoom = async (playerName: string) => {
+  const activeSocket = await ensureConnected();
 
-export const joinRoom = (roomId: string, playerName: string) =>
-  emitWithAck<CreateOrJoinRoomResponse>((ack) => {
-    connectSocket().emit("join_room", { roomId, playerName }, ack);
+  return emitWithAck<CreateOrJoinRoomResponse>((ack) => {
+    activeSocket.emit("create_room", { playerName }, ack);
   });
+};
 
-export const startGame = (roomId: string) =>
-  emitWithAck<StartGameResponse>((ack) => {
-    connectSocket().emit("start_game", { roomId }, ack);
-  });
+export const joinRoom = async (roomId: string, playerName: string) => {
+  const activeSocket = await ensureConnected();
 
-export const makeGuess = (roomId: string, guess: number) =>
-  emitWithAck<void>((ack) => {
-    connectSocket().emit("make_guess", { roomId, guess }, ack);
+  return emitWithAck<CreateOrJoinRoomResponse>((ack) => {
+    activeSocket.emit("join_room", { roomId, playerName }, ack);
   });
+};
+
+export const startGame = async (roomId: string) => {
+  const activeSocket = await ensureConnected();
+
+  return emitWithAck<StartGameResponse>((ack) => {
+    activeSocket.emit("start_game", { roomId }, ack);
+  });
+};
+
+export const leaveRoom = async (roomId: string) => {
+  const activeSocket = await ensureConnected();
+
+  return emitWithAck<void>((ack) => {
+    activeSocket.emit("leave_room", { roomId }, ack);
+  });
+};
+
+export const makeGuess = async (roomId: string, guess: number) => {
+  const activeSocket = await ensureConnected();
+
+  return emitWithAck<void>((ack) => {
+    activeSocket.emit("make_guess", { roomId, guess }, ack);
+  });
+};

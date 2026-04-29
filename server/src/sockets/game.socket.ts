@@ -70,6 +70,26 @@ export const registerGameSocketHandlers = (
       }
     });
 
+    socket.on("leave_room", (payload, ack) => {
+      try {
+        const result = gameService.leaveRoom(payload.roomId, socket.id);
+
+        socket.leave(payload.roomId.trim().toUpperCase());
+
+        if (result.room && !result.deleted) {
+          io.to(result.room.roomId).emit("room_update", { room: result.room });
+
+          if (result.gameOver) {
+            io.to(result.room.roomId).emit("game_over", result.gameOver);
+          }
+        }
+
+        sendSuccess<void>(ack, undefined);
+      } catch (error) {
+        sendFailure(ack, error);
+      }
+    });
+
     socket.on("make_guess", (payload, ack) => {
       try {
         const result = gameService.processGuess(payload.roomId, socket.id, payload.guess);
@@ -101,4 +121,3 @@ export const registerGameSocketHandlers = (
     });
   });
 };
-

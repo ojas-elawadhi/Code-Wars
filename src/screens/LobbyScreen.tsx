@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { PlayerList } from "../components/PlayerList";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { startGame } from "../socket/socket";
+import { leaveRoom, startGame } from "../socket/socket";
 import { useGameStore } from "../store/useGameStore";
 import { colors, spacing } from "../utils/theme";
 
@@ -16,6 +16,7 @@ export default function LobbyScreen() {
   const room = useGameStore((state) => state.room);
   const errorMessage = useGameStore((state) => state.errorMessage);
   const setErrorMessage = useGameStore((state) => state.setErrorMessage);
+  const resetAll = useGameStore((state) => state.resetAll);
 
   const isHost = useMemo(() => {
     if (!player || !room) {
@@ -52,6 +53,19 @@ export default function LobbyScreen() {
     } finally {
       setIsStarting(false);
     }
+  };
+
+  const handleBackToHome = async () => {
+    try {
+      setErrorMessage(null);
+      await leaveRoom(room.roomId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not leave the room.");
+      return;
+    }
+
+    resetAll();
+    router.replace("/");
   };
 
   return (
@@ -94,6 +108,12 @@ export default function LobbyScreen() {
         )}
 
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+
+        <PrimaryButton
+          label="Back to Home"
+          onPress={handleBackToHome}
+          variant="secondary"
+        />
       </View>
     </ScreenContainer>
   );

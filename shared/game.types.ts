@@ -27,6 +27,10 @@ export interface StartGamePayload {
   roomId: string;
 }
 
+export interface LeaveRoomPayload {
+  roomId: string;
+}
+
 export interface MakeGuessPayload {
   roomId: string;
   guess: number;
@@ -87,6 +91,7 @@ export interface ClientToServerEvents {
     payload: StartGamePayload,
     ack: SocketAck<StartGameResponse>
   ) => void;
+  leave_room: (payload: LeaveRoomPayload, ack?: SocketAck<void>) => void;
   make_guess: (payload: MakeGuessPayload, ack?: SocketAck<void>) => void;
 }
 
@@ -96,4 +101,3 @@ export interface ServerToClientEvents {
   guess_result: (payload: GuessResultPayload) => void;
   game_over: (payload: GameOverPayload) => void;
 }
-
