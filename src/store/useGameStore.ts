@@ -69,6 +69,7 @@ export const useGameStore = create<GameStore>((set) => ({
       guessHistory: [
         {
           guess: payload.guess,
+          roundNumber: payload.roundNumber,
           result: payload.result
         },
         ...state.guessHistory
@@ -85,7 +86,11 @@ export const useGameStore = create<GameStore>((set) => ({
         ? {
             ...state.room,
             gameState: "waiting",
-            winner: null
+            winner: null,
+            roundNumber: 0,
+            roundStatus: "idle",
+            roundEndsAt: null,
+            submittedPlayerIds: []
           }
         : null,
       gameState: "waiting",
@@ -95,4 +100,3 @@ export const useGameStore = create<GameStore>((set) => ({
     })),
   resetAll: () => set(initialState)
 }));
-

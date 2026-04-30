@@ -10,6 +10,7 @@ interface TextFieldProps {
   keyboardType?: "default" | "numeric";
   autoCapitalize?: "none" | "characters" | "sentences" | "words";
   maxLength?: number;
+  editable?: boolean;
 }
 
 export function TextField({
@@ -19,19 +20,21 @@ export function TextField({
   placeholder,
   keyboardType = "default",
   autoCapitalize = "none",
-  maxLength
+  maxLength,
+  editable = true
 }: TextFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         autoCapitalize={autoCapitalize}
+        editable={editable}
         keyboardType={keyboardType}
         maxLength={maxLength}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
-        style={styles.input}
+        style={[styles.input, !editable && styles.inputDisabled]}
         value={value}
       />
     </View>
@@ -56,6 +59,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: 14
+  },
+  inputDisabled: {
+    opacity: 0.6
   }
 });
-

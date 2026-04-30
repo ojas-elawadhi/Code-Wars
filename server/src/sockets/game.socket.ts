@@ -1,6 +1,6 @@
 import type { Server } from "socket.io";
 
-import { gameService } from "../services/game.service";
+import { gameService, ROUND_DURATION_MS, ROUND_REVEAL_MS } from "../services/game.service";
 import type {
   ClientToServerEvents,
   CreateOrJoinRoomResponse,
@@ -26,6 +26,74 @@ const sendFailure = <T>(ack: SocketAck<T> | undefined, error: unknown) => {
 export const registerGameSocketHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents>
 ) => {
+  const roundTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  const revealTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+  const normalizeRoomId = (roomId: string) => roomId.trim().toUpperCase();
+
+  const clearRoomTimers = (roomId: string) => {
+    const normalizedRoomId = normalizeRoomId(roomId);
+    const roundTimeout = roundTimeouts.get(normalizedRoomId);
+    const revealTimeout = revealTimeouts.get(normalizedRoomId);
+
+    if (roundTimeout) {
+      clearTimeout(roundTimeout);
+      roundTimeouts.delete(normalizedRoomId);
+    }
+
+    if (revealTimeout) {
+      clearTimeout(revealTimeout);
+      revealTimeouts.delete(normalizedRoomId);
+    }
+  };
+
+  const scheduleNextRound = (roomId: string) => {
+    const normalizedRoomId = normalizeRoomId(roomId);
+    clearRoomTimers(normalizedRoomId);
+    const revealTimeout = setTimeout(() => {
+      revealTimeouts.delete(normalizedRoomId);
+
+      try {
+        const room = gameService.startNextRound(normalizedRoomId);
+        io.to(room.roomId).emit("room_update", { room });
+        scheduleRoundResolution(normalizedRoomId);
+      } catch (error) {
+        console.error(`Could not start next round for ${normalizedRoomId}:`, error);
+      }
+    }, ROUND_REVEAL_MS);
+
+    revealTimeouts.set(normalizedRoomId, revealTimeout);
+  };
+
+  const scheduleRoundResolution = (roomId: string) => {
+    const normalizedRoomId = normalizeRoomId(roomId);
+    clearRoomTimers(normalizedRoomId);
+    const roundTimeout = setTimeout(() => {
+      roundTimeouts.delete(normalizedRoomId);
+
+      try {
+        const result = gameService.resolveRound(normalizedRoomId);
+
+        io.to(result.room.roomId).emit("room_update", { room: result.room });
+        result.guessResults.forEach((guessResult) => {
+          io.to(guessResult.playerId).emit("guess_result", guessResult);
+        });
+
+        if (result.gameOver) {
+          clearRoomTimers(normalizedRoomId);
+          io.to(result.room.roomId).emit("game_over", result.gameOver);
+          return;
+        }
+
+        scheduleNextRound(normalizedRoomId);
+      } catch (error) {
+        console.error(`Could not resolve round for ${normalizedRoomId}:`, error);
+      }
+    }, ROUND_DURATION_MS);
+
+    roundTimeouts.set(normalizedRoomId, roundTimeout);
+  };
+
   io.on("connection", (socket) => {
     socket.on("create_room", (payload, ack) => {
       try {
@@ -63,7 +131,9 @@ export const registerGameSocketHandlers = (
       try {
         const room = gameService.startGame(payload.roomId, socket.id);
 
+        clearRoomTimers(room.roomId);
         io.to(room.roomId).emit("game_started", { room });
+        scheduleRoundResolution(room.roomId);
         sendSuccess<StartGameResponse>(ack, { room });
       } catch (error) {
         sendFailure(ack, error);
@@ -73,15 +143,19 @@ export const registerGameSocketHandlers = (
     socket.on("leave_room", (payload, ack) => {
       try {
         const result = gameService.leaveRoom(payload.roomId, socket.id);
+        const normalizedRoomId = normalizeRoomId(payload.roomId);
 
-        socket.leave(payload.roomId.trim().toUpperCase());
+        socket.leave(normalizedRoomId);
 
         if (result.room && !result.deleted) {
           io.to(result.room.roomId).emit("room_update", { room: result.room });
 
           if (result.gameOver) {
+            clearRoomTimers(result.room.roomId);
             io.to(result.room.roomId).emit("game_over", result.gameOver);
           }
+        } else {
+          clearRoomTimers(result.roomId ?? normalizedRoomId);
         }
 
         sendSuccess<void>(ack, undefined);
@@ -92,13 +166,9 @@ export const registerGameSocketHandlers = (
 
     socket.on("make_guess", (payload, ack) => {
       try {
-        const result = gameService.processGuess(payload.roomId, socket.id, payload.guess);
+        const result = gameService.submitGuess(payload.roomId, socket.id, payload.guess);
 
-        socket.emit("guess_result", result.guessResult);
-
-        if (result.gameOver) {
-          io.to(result.room.roomId).emit("game_over", result.gameOver);
-        }
+        io.to(result.room.roomId).emit("room_update", { room: result.room });
 
         sendSuccess<void>(ack, undefined);
       } catch (error) {
@@ -110,12 +180,16 @@ export const registerGameSocketHandlers = (
       const result = gameService.removePlayer(socket.id);
 
       if (!result.room || result.deleted) {
+        if (result.roomId) {
+          clearRoomTimers(result.roomId);
+        }
         return;
       }
 
       io.to(result.room.roomId).emit("room_update", { room: result.room });
 
       if (result.gameOver) {
+        clearRoomTimers(result.room.roomId);
         io.to(result.room.roomId).emit("game_over", result.gameOver);
       }
     });

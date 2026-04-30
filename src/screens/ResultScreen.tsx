@@ -38,8 +38,8 @@ export default function ResultScreen() {
   return (
     <ScreenContainer>
       <View style={styles.hero}>
-        <Text style={styles.label}>Round finished</Text>
-        <Text style={styles.title}>{winner ? `${winner.name} wins!` : "Round complete"}</Text>
+        <Text style={styles.label}>Game finished</Text>
+        <Text style={styles.title}>{winner ? `${winner.name} wins!` : "Game complete"}</Text>
         <Text style={styles.subtitle}>
           {winner
             ? "Head back to the lobby and start another round when everyone is ready."

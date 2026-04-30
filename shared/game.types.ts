@@ -1,5 +1,6 @@
 export type GameState = "waiting" | "playing" | "finished";
-export type GuessFeedback = "higher" | "lower" | "correct";
+export type GuessFeedback = "higher" | "lower" | "correct" | "missed";
+export type RoundStatus = "idle" | "collecting" | "revealing";
 
 export interface Player {
   id: string;
@@ -12,6 +13,11 @@ export interface PublicRoom {
   gameState: GameState;
   winner: string | null;
   hostId: string;
+  roundNumber: number;
+  roundStatus: RoundStatus;
+  roundEndsAt: number | null;
+  roundDurationSeconds: number;
+  submittedPlayerIds: string[];
 }
 
 export interface CreateRoomPayload {
@@ -47,7 +53,8 @@ export interface GameStartedPayload {
 export interface GuessResultPayload {
   roomId: string;
   playerId: string;
-  guess: number;
+  roundNumber: number;
+  guess: number | null;
   result: GuessFeedback;
 }
 
