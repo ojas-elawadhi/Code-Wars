@@ -101,7 +101,7 @@ export const registerGameSocketHandlers = (
           id: socket.id,
           name: payload.playerName.trim()
         };
-        const room = gameService.createRoom(player);
+        const room = gameService.createRoom(player, payload.gameMode);
 
         socket.join(room.roomId);
         io.to(room.roomId).emit("room_update", { room });
@@ -133,8 +133,26 @@ export const registerGameSocketHandlers = (
 
         clearRoomTimers(room.roomId);
         io.to(room.roomId).emit("game_started", { room });
-        scheduleRoundResolution(room.roomId);
+        if (room.roundStatus === "collecting") {
+          scheduleRoundResolution(room.roomId);
+        }
         sendSuccess<StartGameResponse>(ack, { room });
+      } catch (error) {
+        sendFailure(ack, error);
+      }
+    });
+
+    socket.on("set_secret_number", (payload, ack) => {
+      try {
+        const room = gameService.setSecretNumber(payload.roomId, socket.id, payload.secretNumber);
+
+        io.to(room.roomId).emit("room_update", { room });
+
+        if (room.roundStatus === "collecting") {
+          scheduleRoundResolution(room.roomId);
+        }
+
+        sendSuccess<void>(ack, undefined);
       } catch (error) {
         sendFailure(ack, error);
       }

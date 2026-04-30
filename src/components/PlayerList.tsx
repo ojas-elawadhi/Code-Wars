@@ -7,14 +7,15 @@ interface PlayerListProps {
   players: Player[];
   hostId: string;
   winnerId?: string | null;
+  winnerIds?: string[];
 }
 
-export function PlayerList({ players, hostId, winnerId }: PlayerListProps) {
+export function PlayerList({ players, hostId, winnerId, winnerIds = [] }: PlayerListProps) {
   return (
     <View style={styles.container}>
       {players.map((player) => {
         const isHost = player.id === hostId;
-        const isWinner = player.id === winnerId;
+        const isWinner = winnerIds.includes(player.id) || player.id === winnerId;
 
         return (
           <View key={player.id} style={styles.row}>
@@ -59,4 +60,3 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   }
 });
-

@@ -44,7 +44,23 @@ export default function LobbyScreen() {
     return null;
   }
 
+  const winnerIds = room.winnerIds ?? [];
+  const gameMode = room.gameMode ?? "friends";
+  const maxPlayers = room.maxPlayers ?? (gameMode === "versus" ? 2 : 6);
   const lastWinner = room.players.find((currentPlayer) => currentPlayer.id === room.winner);
+  const hasTie = winnerIds.length > 1;
+  const canStart = gameMode === "versus" ? room.players.length === 2 : room.players.length >= 2;
+  const roomModeLabel = gameMode === "versus" ? "Multiplayer Duel" : "Play With Friends";
+  const infoMessage =
+    gameMode === "versus"
+      ? room.players.length < 2
+        ? room.players.length === 1
+          ? "Waiting for other player to join the duel."
+          : "Versus mode needs exactly 2 players before the host can start."
+        : "Each player chooses a secret number, then both players get one guess per 15-second round to crack the other number."
+      : room.players.length < 2
+        ? "At least 2 players are needed to start."
+        : "Everyone gets one guess per 15-second round. After each round, players learn whether their guess was higher or lower.";
 
   const handleStartGame = async () => {
     try {
@@ -86,6 +102,7 @@ export default function LobbyScreen() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.label}>Lobby</Text>
+        <Text style={styles.mode}>{roomModeLabel}</Text>
         <View style={styles.codeRow}>
           <Text style={styles.code}>{room.roomId}</Text>
           <View style={styles.codeActions}>
@@ -111,25 +128,26 @@ export default function LobbyScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Players</Text>
-        <PlayerList hostId={room.hostId} players={room.players} winnerId={room.winner} />
+        {gameMode === "friends" ? <Text style={styles.copy}>{room.players.length}/{maxPlayers} joined</Text> : null}
+        <PlayerList hostId={room.hostId} players={room.players} winnerId={room.winner} winnerIds={winnerIds} />
       </View>
 
-      {lastWinner ? (
+      {hasTie ? (
+        <View style={styles.notice}>
+          <Text style={styles.noticeText}>Last result: tie game.</Text>
+        </View>
+      ) : lastWinner ? (
         <View style={styles.notice}>
           <Text style={styles.noticeText}>Last winner: {lastWinner.name}</Text>
         </View>
       ) : null}
 
       <View style={styles.section}>
-        <Text style={styles.info}>
-          {room.players.length < 2
-            ? "At least 2 players are needed to start."
-            : "Everyone gets one guess per 15-second round. After each round, players learn whether their guess was higher or lower."}
-        </Text>
+        <Text style={styles.info}>{infoMessage}</Text>
 
         {isHost ? (
           <PrimaryButton
-            disabled={room.players.length < 2}
+            disabled={!canStart}
             label="Start Game"
             loading={isStarting}
             onPress={handleStartGame}
@@ -166,6 +184,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 1
+  },
+  mode: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: "600"
   },
   code: {
     color: colors.text,

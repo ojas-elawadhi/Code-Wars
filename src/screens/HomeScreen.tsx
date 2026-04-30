@@ -1,17 +1,19 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
 import { createRoom, joinRoom } from "../socket/socket";
 import { useGameStore } from "../store/useGameStore";
+import type { GameMode } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
 
 export default function HomeScreen() {
   const [playerName, setPlayerName] = useState("");
   const [roomId, setRoomId] = useState("");
+  const [createMode, setCreateMode] = useState<GameMode>("friends");
   const [loadingAction, setLoadingAction] = useState<"create" | "join" | null>(null);
 
   const isConnected = useGameStore((state) => state.isConnected);
@@ -24,8 +26,8 @@ export default function HomeScreen() {
       setLoadingAction("create");
       setErrorMessage(null);
 
-      const response = await createRoom(playerName.trim());
-      setSession(response.player, response.room);
+      const response = await createRoom(playerName.trim(), createMode);
+      setSession(response.player, response.room, createMode);
       router.replace("/lobby");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not create room.");
@@ -58,7 +60,7 @@ export default function HomeScreen() {
         <Text style={styles.eyebrow}>Real-time multiplayer</Text>
         <Text style={styles.title}>Higher or Lower</Text>
         <Text style={styles.subtitle}>
-          Create a room, invite friends, and take turns guessing through 15-second rounds until someone finds the hidden number.
+          Create a room for classic play-with-friends rounds or a 2-player duel where both players protect a secret number and race to crack the other one.
         </Text>
       </View>
 
@@ -71,9 +73,35 @@ export default function HomeScreen() {
           value={playerName}
         />
 
+        <View style={styles.modeRow}>
+          <Pressable
+            onPress={() => setCreateMode("friends")}
+            style={({ pressed }) => [
+              styles.modeCard,
+              createMode === "friends" && styles.modeCardActive,
+              pressed && styles.modeCardPressed
+            ]}
+          >
+            <Text style={styles.modeTitle}>Play With Friends</Text>
+            <Text style={styles.modeText}>2 to 6 players guess one shared hidden number.</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setCreateMode("versus")}
+            style={({ pressed }) => [
+              styles.modeCard,
+              createMode === "versus" && styles.modeCardActive,
+              pressed && styles.modeCardPressed
+            ]}
+          >
+            <Text style={styles.modeTitle}>Multiplayer Duel</Text>
+            <Text style={styles.modeText}>2 players choose secret numbers and guess each other.</Text>
+          </Pressable>
+        </View>
+
         <PrimaryButton
           disabled={!canCreate}
-          label="Create Room"
+          label={createMode === "friends" ? "Create Friends Room" : "Create Duel Room"}
           loading={loadingAction === "create"}
           onPress={handleCreateRoom}
         />
@@ -137,6 +165,34 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
     gap: spacing.md
+  },
+  modeRow: {
+    gap: spacing.sm
+  },
+  modeCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    padding: spacing.md,
+    gap: spacing.xs
+  },
+  modeCardActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surface
+  },
+  modeCardPressed: {
+    opacity: 0.9
+  },
+  modeTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  modeText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20
   },
   footer: {
     gap: spacing.sm

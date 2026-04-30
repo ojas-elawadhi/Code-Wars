@@ -1,13 +1,15 @@
 import { create } from "zustand";
 
 import type {
+  GameMode,
   GameOverPayload,
   GameStartedPayload,
   GameState,
   GuessHistoryItem,
   GuessResultPayload,
   Player,
-  PublicRoom
+  PublicRoom,
+  RoundStatus
 } from "../types/game.types";
 
 interface GameStore {
@@ -20,7 +22,7 @@ interface GameStore {
   errorMessage: string | null;
   setConnectionStatus: (isConnected: boolean) => void;
   setErrorMessage: (message: string | null) => void;
-  setSession: (player: Player, room: PublicRoom) => void;
+  setSession: (player: Player, room: PublicRoom, fallbackGameMode?: GameMode) => void;
   setRoom: (room: PublicRoom) => void;
   setGameStarted: (payload: GameStartedPayload) => void;
   setGuessResult: (payload: GuessResultPayload) => void;
@@ -39,30 +41,61 @@ const initialState = {
   errorMessage: null
 };
 
+const normalizeRoom = (
+  room: PublicRoom,
+  options?: {
+    fallbackGameMode?: GameMode;
+    previousRoom?: PublicRoom | null;
+  }
+): PublicRoom => {
+  const legacyRoom = room as Partial<PublicRoom>;
+  const gameMode: GameMode =
+    legacyRoom.gameMode ?? options?.previousRoom?.gameMode ?? options?.fallbackGameMode ?? "friends";
+
+  return {
+    ...room,
+    gameMode,
+    maxPlayers: legacyRoom.maxPlayers ?? options?.previousRoom?.maxPlayers ?? (gameMode === "versus" ? 2 : 6),
+    winner: legacyRoom.winner ?? options?.previousRoom?.winner ?? null,
+    winnerIds:
+      legacyRoom.winnerIds ??
+      options?.previousRoom?.winnerIds ??
+      (legacyRoom.winner ? [legacyRoom.winner] : []),
+    roundNumber: legacyRoom.roundNumber ?? options?.previousRoom?.roundNumber ?? 0,
+    roundStatus: legacyRoom.roundStatus ?? options?.previousRoom?.roundStatus ?? ("idle" as RoundStatus),
+    roundEndsAt: legacyRoom.roundEndsAt ?? options?.previousRoom?.roundEndsAt ?? null,
+    roundDurationSeconds:
+      legacyRoom.roundDurationSeconds ?? options?.previousRoom?.roundDurationSeconds ?? 15,
+    submittedPlayerIds: legacyRoom.submittedPlayerIds ?? options?.previousRoom?.submittedPlayerIds ?? [],
+    secretSubmittedPlayerIds:
+      legacyRoom.secretSubmittedPlayerIds ?? options?.previousRoom?.secretSubmittedPlayerIds ?? []
+  };
+};
+
 export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
   setConnectionStatus: (isConnected) => set({ isConnected }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
-  setSession: (player, room) =>
+  setSession: (player, room, fallbackGameMode) =>
     set({
       player,
-      room,
+      room: normalizeRoom(room, { fallbackGameMode }),
       gameState: room.gameState,
       errorMessage: null
     }),
   setRoom: (room) =>
-    set({
-      room,
+    set((state) => ({
+      room: normalizeRoom(room, { previousRoom: state.room }),
       gameState: room.gameState
-    }),
+    })),
   setGameStarted: ({ room }) =>
-    set({
-      room,
+    set((state) => ({
+      room: normalizeRoom(room, { previousRoom: state.room }),
       gameState: room.gameState,
       lastGuessResult: null,
       guessHistory: [],
       errorMessage: null
-    }),
+    })),
   setGuessResult: (payload) =>
     set((state) => ({
       lastGuessResult: payload,
@@ -76,10 +109,10 @@ export const useGameStore = create<GameStore>((set) => ({
       ].slice(0, 10)
     })),
   setGameOver: ({ room }) =>
-    set({
-      room,
+    set((state) => ({
+      room: normalizeRoom(room, { previousRoom: state.room }),
       gameState: room.gameState
-    }),
+    })),
   resetRoundState: () =>
     set((state) => ({
       room: state.room
@@ -87,10 +120,12 @@ export const useGameStore = create<GameStore>((set) => ({
             ...state.room,
             gameState: "waiting",
             winner: null,
+            winnerIds: [],
             roundNumber: 0,
             roundStatus: "idle",
             roundEndsAt: null,
-            submittedPlayerIds: []
+            submittedPlayerIds: [],
+            secretSubmittedPlayerIds: []
           }
         : null,
       gameState: "waiting",

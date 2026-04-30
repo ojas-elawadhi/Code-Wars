@@ -28,7 +28,10 @@ export default function ResultScreen() {
     return null;
   }
 
+  const winnerIds = room.winnerIds ?? [];
+  const winners = room.players.filter((currentPlayer) => winnerIds.includes(currentPlayer.id));
   const winner = room.players.find((currentPlayer) => currentPlayer.id === room.winner) ?? null;
+  const isTie = winners.length > 1;
 
   const handlePlayAgain = () => {
     resetRoundState();
@@ -39,9 +42,13 @@ export default function ResultScreen() {
     <ScreenContainer>
       <View style={styles.hero}>
         <Text style={styles.label}>Game finished</Text>
-        <Text style={styles.title}>{winner ? `${winner.name} wins!` : "Game complete"}</Text>
+        <Text style={styles.title}>
+          {isTie ? "It's a tie!" : winner ? `${winner.name} wins!` : "Game complete"}
+        </Text>
         <Text style={styles.subtitle}>
-          {winner
+          {isTie
+            ? "Both players guessed correctly in the same round."
+            : winner
             ? "Head back to the lobby and start another round when everyone is ready."
             : "The round ended without a recorded winner."}
         </Text>
@@ -49,7 +56,7 @@ export default function ResultScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Players</Text>
-        <PlayerList hostId={room.hostId} players={room.players} winnerId={room.winner} />
+        <PlayerList hostId={room.hostId} players={room.players} winnerId={room.winner} winnerIds={winnerIds} />
       </View>
 
       <PrimaryButton label="Play Again" onPress={handlePlayAgain} />

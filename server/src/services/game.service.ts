@@ -1,5 +1,6 @@
 import type { Player } from "../types/game.types";
 import type {
+  GameMode,
   GameOverPayload,
   GuessFeedback,
   PublicRoom,
@@ -9,7 +10,8 @@ import type {
 } from "../types/game.types";
 import type { RoomModel } from "../models/room.model";
 
-const MAX_PLAYERS = 6;
+const FRIENDS_MAX_PLAYERS = 6;
+const VERSUS_MAX_PLAYERS = 2;
 const MIN_PLAYERS = 2;
 const ROOM_CODE_LENGTH = 6;
 const GUESS_MIN = 1;
@@ -21,7 +23,7 @@ class GameService {
   private readonly rooms = new Map<string, RoomModel>();
   private readonly playerRooms = new Map<string, string>();
 
-  createRoom(host: Player): PublicRoom {
+  createRoom(host: Player, gameMode: GameMode): PublicRoom {
     this.validatePlayerName(host.name);
 
     const roomId = this.generateRoomId();
@@ -29,14 +31,19 @@ class GameService {
       roomId,
       players: [host],
       gameState: "waiting",
+      gameMode,
+      maxPlayers: this.getMaxPlayersForMode(gameMode),
       secretNumber: 0,
+      playerSecretNumbers: new Map(),
       winner: null,
+      winnerIds: [],
       hostId: host.id,
       roundNumber: 0,
       roundStatus: "idle",
       roundEndsAt: null,
       roundDurationSeconds: ROUND_DURATION_MS / 1000,
       submittedPlayerIds: [],
+      secretSubmittedPlayerIds: [],
       roundGuesses: new Map()
     };
 
@@ -52,7 +59,7 @@ class GameService {
     const normalizedRoomId = this.normalizeRoomId(roomId);
     const room = this.requireRoom(normalizedRoomId);
 
-    if (room.players.length >= MAX_PLAYERS) {
+    if (room.players.length >= room.maxPlayers) {
       throw new Error("This room is full.");
     }
 
@@ -77,15 +84,63 @@ class GameService {
       throw new Error("Only the host can start the game.");
     }
 
+    if (room.gameMode === "versus" && room.players.length !== VERSUS_MAX_PLAYERS) {
+      throw new Error("Versus mode needs exactly 2 players.");
+    }
+
     if (room.players.length < MIN_PLAYERS) {
       throw new Error("At least 2 players are required to start.");
     }
 
     room.gameState = "playing";
-    room.secretNumber = this.randomNumber(GUESS_MIN, GUESS_MAX);
     room.winner = null;
+    room.winnerIds = [];
+    room.roundNumber = 0;
+    room.roundEndsAt = null;
+    room.submittedPlayerIds = [];
+    room.roundGuesses.clear();
 
+    if (room.gameMode === "versus") {
+      room.roundStatus = "setup";
+      room.secretNumber = 0;
+      room.playerSecretNumbers.clear();
+      room.secretSubmittedPlayerIds = [];
+      return this.toPublicRoom(room);
+    }
+
+    room.secretSubmittedPlayerIds = [];
+    room.secretNumber = this.randomNumber(GUESS_MIN, GUESS_MAX);
     this.beginRound(room, 1);
+
+    return this.toPublicRoom(room);
+  }
+
+  setSecretNumber(roomId: string, playerId: string, secretNumber: number): PublicRoom {
+    const room = this.requireRoom(this.normalizeRoomId(roomId));
+    const player = room.players.find((currentPlayer) => currentPlayer.id === playerId);
+
+    if (!player) {
+      throw new Error("Player is not part of this room.");
+    }
+
+    if (room.gameMode !== "versus") {
+      throw new Error("This room does not use player-chosen secret numbers.");
+    }
+
+    if (room.gameState !== "playing" || room.roundStatus !== "setup") {
+      throw new Error("Secret numbers can only be set at the start of a versus game.");
+    }
+
+    if (room.secretSubmittedPlayerIds.includes(playerId)) {
+      throw new Error("You already locked in your secret number.");
+    }
+
+    room.playerSecretNumbers.set(playerId, this.validateGuess(secretNumber));
+    room.secretSubmittedPlayerIds = [...room.secretSubmittedPlayerIds, playerId];
+
+    if (room.secretSubmittedPlayerIds.length === room.players.length) {
+      this.beginRound(room, 1);
+    }
 
     return this.toPublicRoom(room);
   }
@@ -143,9 +198,6 @@ class GameService {
       throw new Error("The round is not active.");
     }
 
-    const winningPlayerId =
-      room.submittedPlayerIds.find((playerId) => room.roundGuesses.get(playerId) === room.secretNumber) ?? null;
-
     const guessResults = room.players.map((player) => {
       const submittedGuess = room.roundGuesses.get(player.id);
 
@@ -159,11 +211,12 @@ class GameService {
         };
       }
 
+      const targetNumber = this.getTargetNumberForPlayer(room, player.id);
       let result: GuessFeedback = "higher";
 
-      if (submittedGuess === room.secretNumber) {
+      if (submittedGuess === targetNumber) {
         result = "correct";
-      } else if (submittedGuess > room.secretNumber) {
+      } else if (submittedGuess > targetNumber) {
         result = "lower";
       }
 
@@ -176,27 +229,40 @@ class GameService {
       };
     });
 
+    const winnerIds =
+      room.gameMode === "versus"
+        ? guessResults.filter((result) => result.result === "correct").map((result) => result.playerId)
+        : (() => {
+            const firstCorrectPlayerId =
+              room.submittedPlayerIds.find((playerId) => room.roundGuesses.get(playerId) === room.secretNumber) ?? null;
+
+            return firstCorrectPlayerId ? [firstCorrectPlayerId] : [];
+          })();
+
     let gameOver: GameOverPayload | null = null;
 
-    if (winningPlayerId) {
+    if (winnerIds.length > 0) {
       room.gameState = "finished";
-      room.winner = winningPlayerId;
+      room.winnerIds = winnerIds;
+      room.winner = winnerIds.length === 1 ? winnerIds[0] : null;
       room.roundStatus = "idle";
       room.roundEndsAt = null;
     } else {
       room.roundStatus = "revealing";
       room.roundEndsAt = null;
       room.winner = null;
+      room.winnerIds = [];
     }
 
     room.submittedPlayerIds = [];
     room.roundGuesses.clear();
 
-    if (winningPlayerId) {
-      const winner = room.players.find((player) => player.id === winningPlayerId) ?? null;
+    if (winnerIds.length > 0) {
+      const winners = room.players.filter((player) => winnerIds.includes(player.id));
       gameOver = {
         room: this.toPublicRoom(room),
-        winner
+        winner: winners.length === 1 ? winners[0] : null,
+        winners
       };
     }
 
@@ -246,6 +312,10 @@ class GameService {
 
     room.players = room.players.filter((player) => player.id !== playerId);
     room.submittedPlayerIds = room.submittedPlayerIds.filter((submittedPlayerId) => submittedPlayerId !== playerId);
+    room.secretSubmittedPlayerIds = room.secretSubmittedPlayerIds.filter(
+      (submittedPlayerId) => submittedPlayerId !== playerId
+    );
+    room.playerSecretNumbers.delete(playerId);
     room.roundGuesses.delete(playerId);
 
     if (room.players.length === 0) {
@@ -265,21 +335,25 @@ class GameService {
     let gameOver: GameOverPayload | null = null;
 
     if (room.gameState === "playing" && room.players.length < MIN_PLAYERS) {
+      const winners = room.players.slice(0, 1);
+
       room.gameState = "finished";
-      room.winner = room.players[0]?.id ?? null;
+      room.winner = winners[0]?.id ?? null;
+      room.winnerIds = winners.map((winner) => winner.id);
       this.resetRoundState(room);
 
-      if (room.winner) {
-        const winner = room.players.find((player) => player.id === room.winner) ?? null;
+      if (winners[0]) {
         gameOver = {
           room: this.toPublicRoom(room),
-          winner
+          winner: winners[0],
+          winners
         };
       }
     }
 
-    if (room.winner === playerId) {
+    if (room.winner === playerId || room.winnerIds.includes(playerId)) {
       room.winner = null;
+      room.winnerIds = [];
       room.gameState = "waiting";
       this.resetRoundState(room);
     }
@@ -297,13 +371,17 @@ class GameService {
       roomId: room.roomId,
       players: [...room.players],
       gameState: room.gameState,
+      gameMode: room.gameMode,
+      maxPlayers: room.maxPlayers,
       winner: room.winner,
+      winnerIds: [...room.winnerIds],
       hostId: room.hostId,
       roundNumber: room.roundNumber,
       roundStatus: room.roundStatus,
       roundEndsAt: room.roundEndsAt,
       roundDurationSeconds: room.roundDurationSeconds,
-      submittedPlayerIds: [...room.submittedPlayerIds]
+      submittedPlayerIds: [...room.submittedPlayerIds],
+      secretSubmittedPlayerIds: [...room.secretSubmittedPlayerIds]
     };
   }
 
@@ -320,8 +398,34 @@ class GameService {
     room.roundStatus = "idle";
     room.roundEndsAt = null;
     room.submittedPlayerIds = [];
+    room.secretSubmittedPlayerIds = [];
     room.roundGuesses.clear();
+    room.playerSecretNumbers.clear();
     room.secretNumber = 0;
+  }
+
+  private getTargetNumberForPlayer(room: RoomModel, playerId: string) {
+    if (room.gameMode === "versus") {
+      const opponent = room.players.find((player) => player.id !== playerId);
+
+      if (!opponent) {
+        throw new Error("Versus mode needs an opponent.");
+      }
+
+      const opponentSecret = room.playerSecretNumbers.get(opponent.id);
+
+      if (opponentSecret === undefined) {
+        throw new Error("The opponent has not locked in a secret number.");
+      }
+
+      return opponentSecret;
+    }
+
+    return room.secretNumber;
+  }
+
+  private getMaxPlayersForMode(gameMode: GameMode) {
+    return gameMode === "versus" ? VERSUS_MAX_PLAYERS : FRIENDS_MAX_PLAYERS;
   }
 
   private requireRoom(roomId: string): RoomModel {

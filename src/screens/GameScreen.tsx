@@ -5,13 +5,15 @@ import { StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import { makeGuess } from "../socket/socket";
+import { makeGuess, setSecretNumber } from "../socket/socket";
 import { useGameStore } from "../store/useGameStore";
 import { colors, spacing } from "../utils/theme";
 
 export default function GameScreen() {
   const [guess, setGuess] = useState("");
+  const [secretNumber, setSecretNumberInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingSecret, setIsSubmittingSecret] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   const player = useGameStore((state) => state.player);
@@ -51,21 +53,56 @@ export default function GameScreen() {
     setErrorMessage(null);
   }, [room?.roundNumber, room?.roundStatus, setErrorMessage]);
 
+  useEffect(() => {
+    if (room?.roundStatus !== "setup") {
+      setSecretNumberInput("");
+    }
+  }, [room?.roundStatus]);
+
   const latestFeedback = !lastGuessResult
-    ? "Submit one number this round to get higher, lower, or correct feedback when the timer ends."
+    ? room?.gameMode === "versus"
+      ? "Submit one guess per round to learn whether your opponent's secret number is higher, lower, or correct."
+      : "Submit one number this round to get higher, lower, or correct feedback when the timer ends."
     : lastGuessResult.result === "missed"
       ? `You missed round ${lastGuessResult.roundNumber}.`
-      : `Round ${lastGuessResult.roundNumber}: your guess of ${lastGuessResult.guess} is ${lastGuessResult.result}.`;
+      : room?.gameMode === "versus"
+        ? `Round ${lastGuessResult.roundNumber}: your guess of ${lastGuessResult.guess} against your opponent's number is ${lastGuessResult.result}.`
+        : `Round ${lastGuessResult.roundNumber}: your guess of ${lastGuessResult.guess} is ${lastGuessResult.result}.`;
 
   if (!room || !player) {
     return null;
   }
 
-  const hasSubmitted = room.submittedPlayerIds.includes(player.id);
+  const gameMode = room.gameMode ?? "friends";
+  const submittedPlayerIds = room.submittedPlayerIds ?? [];
+  const secretSubmittedPlayerIds = room.secretSubmittedPlayerIds ?? [];
+  const roundDurationSeconds = room.roundDurationSeconds ?? 15;
+  const hasSubmitted = submittedPlayerIds.includes(player.id);
+  const hasSubmittedSecret = secretSubmittedPlayerIds.includes(player.id);
   const isCollecting = room.roundStatus === "collecting";
+  const isSecretSetup = gameMode === "versus" && room.roundStatus === "setup";
   const secondsRemaining = room.roundEndsAt
     ? Math.max(0, Math.ceil((room.roundEndsAt - currentTime) / 1000))
     : 0;
+
+  const handleSubmitSecretNumber = async () => {
+    const parsedSecretNumber = Number(secretNumber);
+
+    if (!Number.isInteger(parsedSecretNumber) || parsedSecretNumber < 1 || parsedSecretNumber > 100) {
+      setErrorMessage("Enter a whole number between 1 and 100 for your secret number.");
+      return;
+    }
+
+    try {
+      setIsSubmittingSecret(true);
+      setErrorMessage(null);
+      await setSecretNumber(room.roomId, parsedSecretNumber);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Could not lock in your secret number.");
+    } finally {
+      setIsSubmittingSecret(false);
+    }
+  };
 
   const handleSubmitGuess = async () => {
     if (!isCollecting) {
@@ -100,42 +137,75 @@ export default function GameScreen() {
   return (
     <ScreenContainer>
       <View style={styles.header}>
-        <Text style={styles.label}>Round live</Text>
-        <Text style={styles.title}>Guess the secret number</Text>
+        <Text style={styles.label}>{isSecretSetup ? "Secret setup" : "Round live"}</Text>
+        <Text style={styles.title}>
+          {gameMode === "versus" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the secret number"}
+        </Text>
         <Text style={styles.subtitle}>
-          Each round lasts {room.roundDurationSeconds} seconds. Submit one number from 1 to 100 before time runs out.
+          {gameMode === "versus"
+            ? isSecretSetup
+              ? "Pick a number from 1 to 100. Your opponent will try to guess it while you try to guess theirs."
+              : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from 1 to 100 to guess your opponent's secret.`
+            : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from 1 to 100 before time runs out.`}
         </Text>
       </View>
 
       <View style={styles.card}>
-        <View style={styles.roundHeader}>
-          <Text style={styles.roundTitle}>Round {room.roundNumber}</Text>
-          <Text style={styles.timer}>
-            {isCollecting ? `${secondsRemaining}s left` : "Checking guesses..."}
-          </Text>
-        </View>
-        <Text style={styles.status}>
-          {isCollecting
-            ? hasSubmitted
-              ? "Your guess is locked in for this round."
-              : "You can submit one guess this round."
-            : "Round closed. Feedback is on the way."}
-        </Text>
-        <TextField
-          editable={isCollecting && !hasSubmitted}
-          keyboardType="numeric"
-          label="Your guess"
-          maxLength={3}
-          onChangeText={setGuess}
-          placeholder={isCollecting && !hasSubmitted ? "Pick a number" : "Wait for the next round"}
-          value={guess}
-        />
-        <PrimaryButton
-          disabled={!isCollecting || hasSubmitted}
-          label={hasSubmitted ? "Guess Submitted" : "Lock In Guess"}
-          loading={isSubmitting}
-          onPress={handleSubmitGuess}
-        />
+        {isSecretSetup ? (
+          <>
+            <Text style={styles.status}>
+              {hasSubmittedSecret
+                ? "Your secret number is locked in. Waiting for the other player."
+                : "Choose your secret number before round 1 can begin."}
+            </Text>
+            <TextField
+              editable={!hasSubmittedSecret}
+              keyboardType="numeric"
+              label="Your secret number"
+              maxLength={3}
+              onChangeText={setSecretNumberInput}
+              placeholder={hasSubmittedSecret ? "Secret number saved" : "Pick a secret number"}
+              value={secretNumber}
+            />
+            <PrimaryButton
+              disabled={hasSubmittedSecret}
+              label={hasSubmittedSecret ? "Secret Locked In" : "Lock In Secret Number"}
+              loading={isSubmittingSecret}
+              onPress={handleSubmitSecretNumber}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.roundHeader}>
+              <Text style={styles.roundTitle}>Round {room.roundNumber}</Text>
+              <Text style={styles.timer}>
+                {isCollecting ? `${secondsRemaining}s left` : "Checking guesses..."}
+              </Text>
+            </View>
+            <Text style={styles.status}>
+              {isCollecting
+                ? hasSubmitted
+                  ? "Your guess is locked in for this round."
+                  : "You can submit one guess this round."
+                : "Round closed. Feedback is on the way."}
+            </Text>
+            <TextField
+              editable={isCollecting && !hasSubmitted}
+              keyboardType="numeric"
+              label={gameMode === "versus" ? "Your guess for the other player" : "Your guess"}
+              maxLength={3}
+              onChangeText={setGuess}
+              placeholder={isCollecting && !hasSubmitted ? "Pick a number" : "Wait for the next round"}
+              value={guess}
+            />
+            <PrimaryButton
+              disabled={!isCollecting || hasSubmitted}
+              label={hasSubmitted ? "Guess Submitted" : "Lock In Guess"}
+              loading={isSubmitting}
+              onPress={handleSubmitGuess}
+            />
+          </>
+        )}
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
       </View>
 

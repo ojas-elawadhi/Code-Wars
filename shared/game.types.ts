@@ -1,6 +1,7 @@
 export type GameState = "waiting" | "playing" | "finished";
 export type GuessFeedback = "higher" | "lower" | "correct" | "missed";
-export type RoundStatus = "idle" | "collecting" | "revealing";
+export type RoundStatus = "idle" | "setup" | "collecting" | "revealing";
+export type GameMode = "friends" | "versus";
 
 export interface Player {
   id: string;
@@ -11,17 +12,22 @@ export interface PublicRoom {
   roomId: string;
   players: Player[];
   gameState: GameState;
+  gameMode: GameMode;
+  maxPlayers: number;
   winner: string | null;
+  winnerIds: string[];
   hostId: string;
   roundNumber: number;
   roundStatus: RoundStatus;
   roundEndsAt: number | null;
   roundDurationSeconds: number;
   submittedPlayerIds: string[];
+  secretSubmittedPlayerIds: string[];
 }
 
 export interface CreateRoomPayload {
   playerName: string;
+  gameMode: GameMode;
 }
 
 export interface JoinRoomPayload {
@@ -40,6 +46,11 @@ export interface LeaveRoomPayload {
 export interface MakeGuessPayload {
   roomId: string;
   guess: number;
+}
+
+export interface SetSecretNumberPayload {
+  roomId: string;
+  secretNumber: number;
 }
 
 export interface RoomUpdatePayload {
@@ -61,6 +72,7 @@ export interface GuessResultPayload {
 export interface GameOverPayload {
   room: PublicRoom;
   winner: Player | null;
+  winners: Player[];
 }
 
 export interface CreateOrJoinRoomResponse {
@@ -98,6 +110,7 @@ export interface ClientToServerEvents {
     payload: StartGamePayload,
     ack: SocketAck<StartGameResponse>
   ) => void;
+  set_secret_number: (payload: SetSecretNumberPayload, ack?: SocketAck<void>) => void;
   leave_room: (payload: LeaveRoomPayload, ack?: SocketAck<void>) => void;
   make_guess: (payload: MakeGuessPayload, ack?: SocketAck<void>) => void;
 }

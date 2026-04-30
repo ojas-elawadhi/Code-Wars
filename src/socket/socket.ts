@@ -4,6 +4,7 @@ import { useGameStore } from "../store/useGameStore";
 import type {
   ClientToServerEvents,
   CreateOrJoinRoomResponse,
+  GameMode,
   ServerToClientEvents,
   SocketAck,
   StartGameResponse
@@ -142,11 +143,11 @@ export const connectSocket = () => {
   return activeSocket;
 };
 
-export const createRoom = async (playerName: string) => {
+export const createRoom = async (playerName: string, gameMode: GameMode) => {
   const activeSocket = await ensureConnected();
 
   return emitWithAck<CreateOrJoinRoomResponse>((ack) => {
-    activeSocket.emit("create_room", { playerName }, ack);
+    activeSocket.emit("create_room", { playerName, gameMode }, ack);
   });
 };
 
@@ -163,6 +164,14 @@ export const startGame = async (roomId: string) => {
 
   return emitWithAck<StartGameResponse>((ack) => {
     activeSocket.emit("start_game", { roomId }, ack);
+  });
+};
+
+export const setSecretNumber = async (roomId: string, secretNumber: number) => {
+  const activeSocket = await ensureConnected();
+
+  return emitWithAck<void>((ack) => {
+    activeSocket.emit("set_secret_number", { roomId, secretNumber }, ack);
   });
 };
 
