@@ -200,6 +200,11 @@ class GameService {
 
     const guessResults = room.players.map((player) => {
       const submittedGuess = room.roundGuesses.get(player.id);
+      const opponent =
+        room.gameMode === "versus"
+          ? room.players.find((currentPlayer) => currentPlayer.id !== player.id) ?? null
+          : null;
+      const opponentGuess = opponent ? room.roundGuesses.get(opponent.id) ?? null : null;
 
       if (submittedGuess === undefined) {
         return {
@@ -207,6 +212,7 @@ class GameService {
           playerId: player.id,
           roundNumber: room.roundNumber,
           guess: null,
+          opponentGuess,
           result: "missed" as GuessFeedback
         };
       }
@@ -225,6 +231,7 @@ class GameService {
         playerId: player.id,
         roundNumber: room.roundNumber,
         guess: submittedGuess,
+        opponentGuess,
         result
       };
     });

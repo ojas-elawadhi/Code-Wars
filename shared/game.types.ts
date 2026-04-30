@@ -66,6 +66,7 @@ export interface GuessResultPayload {
   playerId: string;
   roundNumber: number;
   guess: number | null;
+  opponentGuess: number | null;
   result: GuessFeedback;
 }
 

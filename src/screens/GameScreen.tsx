@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
@@ -15,6 +15,8 @@ export default function GameScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingSecret, setIsSubmittingSecret] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [showRoundSummary, setShowRoundSummary] = useState(false);
+  const [canNavigateToResult, setCanNavigateToResult] = useState(false);
 
   const player = useGameStore((state) => state.player);
   const room = useGameStore((state) => state.room);
@@ -27,6 +29,9 @@ export default function GameScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const previousOpponentReadyRef = useRef(false);
   const previousRoundStatusRef = useRef<string | null>(null);
+  const previousSummaryRoundRef = useRef<number | null>(null);
+  const roundSummaryOpacity = useRef(new Animated.Value(0)).current;
+  const roundSummaryTranslateY = useRef(new Animated.Value(-12)).current;
 
   useEffect(() => {
     if (!player || !room) {
@@ -35,9 +40,13 @@ export default function GameScreen() {
     }
 
     if (room.gameState === "finished") {
+      if ((room.gameMode ?? "friends") === "versus" && !canNavigateToResult) {
+        return;
+      }
+
       router.replace("/result");
     }
-  }, [player, room]);
+  }, [canNavigateToResult, player, room]);
 
   useEffect(() => {
     if (room?.roundStatus !== "collecting" || !room.roundEndsAt) {
@@ -63,6 +72,24 @@ export default function GameScreen() {
       setSecretNumberInput("");
     }
   }, [room?.roundStatus]);
+
+  useEffect(() => {
+    if (room?.gameState !== "finished") {
+      setCanNavigateToResult(false);
+    }
+  }, [room?.gameState]);
+
+  useEffect(() => {
+    if (room?.roomId) {
+      previousSummaryRoundRef.current = null;
+    }
+  }, [room?.roomId]);
+
+  useEffect(() => {
+    if (!lastGuessResult) {
+      previousSummaryRoundRef.current = null;
+    }
+  }, [lastGuessResult]);
 
   useEffect(() => {
     if (!toastMessage) {
@@ -104,6 +131,16 @@ export default function GameScreen() {
   const secondsRemaining = room.roundEndsAt
     ? Math.max(0, Math.ceil((room.roundEndsAt - currentTime) / 1000))
     : 0;
+  const roundSummaryHint =
+    !lastGuessResult || gameMode !== "versus"
+      ? null
+      : lastGuessResult.result === "missed"
+        ? "You did not submit a guess this round."
+        : lastGuessResult.result === "higher"
+          ? "Your guess is lower than your opponent's locked number."
+          : lastGuessResult.result === "lower"
+            ? "Your guess is higher than your opponent's locked number."
+            : "Your guess matched your opponent's locked number.";
 
   useEffect(() => {
     if (gameMode !== "versus") {
@@ -127,6 +164,70 @@ export default function GameScreen() {
     previousOpponentReadyRef.current = opponentHasSubmittedSecret;
     previousRoundStatusRef.current = room.roundStatus;
   }, [gameMode, opponentHasSubmittedSecret, personalSecretNumber, room.roundStatus]);
+
+  useEffect(() => {
+    if (gameMode !== "versus" || !lastGuessResult) {
+      return;
+    }
+
+    if (previousSummaryRoundRef.current === lastGuessResult.roundNumber) {
+      return;
+    }
+
+    previousSummaryRoundRef.current = lastGuessResult.roundNumber;
+    setShowRoundSummary(true);
+    setCanNavigateToResult(false);
+    roundSummaryOpacity.setValue(0);
+    roundSummaryTranslateY.setValue(-12);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(roundSummaryOpacity, {
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          toValue: 1,
+          useNativeDriver: true
+        }),
+        Animated.timing(roundSummaryTranslateY, {
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          toValue: 0,
+          useNativeDriver: true
+        })
+      ]),
+      Animated.delay(1700),
+      Animated.parallel([
+        Animated.timing(roundSummaryOpacity, {
+          duration: 240,
+          easing: Easing.in(Easing.cubic),
+          toValue: 0,
+          useNativeDriver: true
+        }),
+        Animated.timing(roundSummaryTranslateY, {
+          duration: 240,
+          easing: Easing.in(Easing.cubic),
+          toValue: -8,
+          useNativeDriver: true
+        })
+      ])
+    ]).start(({ finished }) => {
+      if (!finished) {
+        return;
+      }
+
+      setShowRoundSummary(false);
+
+      if (room.gameState === "finished") {
+        setCanNavigateToResult(true);
+      }
+    });
+  }, [
+    gameMode,
+    lastGuessResult,
+    room.gameState,
+    roundSummaryOpacity,
+    roundSummaryTranslateY
+  ]);
 
   const handleSubmitSecretNumber = async () => {
     const parsedSecretNumber = Number(secretNumber);
@@ -193,6 +294,26 @@ export default function GameScreen() {
           <View style={styles.toast}>
             <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
+        ) : null}
+        {showRoundSummary && gameMode === "versus" && lastGuessResult ? (
+          <Animated.View
+            style={[
+              styles.roundSummaryPopup,
+              {
+                opacity: roundSummaryOpacity,
+                transform: [{ translateY: roundSummaryTranslateY }]
+              }
+            ]}
+          >
+            <Text style={styles.roundSummaryTitle}>Round {lastGuessResult.roundNumber} completed</Text>
+            <Text style={styles.roundSummaryText}>
+              Your guess: {lastGuessResult.guess ?? "No guess"}
+            </Text>
+            <Text style={styles.roundSummaryText}>
+              Opponent guess: {lastGuessResult.opponentGuess ?? "No guess"}
+            </Text>
+            {roundSummaryHint ? <Text style={styles.roundSummaryHint}>{roundSummaryHint}</Text> : null}
+          </Animated.View>
         ) : null}
         <Text style={styles.title}>
           {gameMode === "versus" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the secret number"}
@@ -349,6 +470,38 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: "600"
+  },
+  roundSummaryPopup: {
+    alignSelf: "stretch",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 20,
+    padding: spacing.md,
+    gap: spacing.xs,
+    shadowColor: "#000000",
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: {
+      width: 0,
+      height: 10
+    },
+    elevation: 8
+  },
+  roundSummaryTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  roundSummaryText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600"
+  },
+  roundSummaryHint: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20
   },
   card: {
     backgroundColor: colors.surface,
