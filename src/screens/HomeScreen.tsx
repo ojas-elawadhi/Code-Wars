@@ -58,7 +58,7 @@ export default function HomeScreen() {
         <Text style={styles.eyebrow}>Real-time multiplayer</Text>
         <Text style={styles.title}>Higher or Lower</Text>
         <Text style={styles.subtitle}>
-          Create a room, invite friends, and take turns guessing through 10-second rounds until someone finds the hidden number.
+          Create a room, invite friends, and take turns guessing through 15-second rounds until someone finds the hidden number.
         </Text>
       </View>
 

@@ -14,7 +14,7 @@ const MIN_PLAYERS = 2;
 const ROOM_CODE_LENGTH = 6;
 const GUESS_MIN = 1;
 const GUESS_MAX = 100;
-export const ROUND_DURATION_MS = 10000;
+export const ROUND_DURATION_MS = 15000;
 export const ROUND_REVEAL_MS = 2500;
 
 class GameService {

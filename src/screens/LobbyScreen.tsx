@@ -124,7 +124,7 @@ export default function LobbyScreen() {
         <Text style={styles.info}>
           {room.players.length < 2
             ? "At least 2 players are needed to start."
-            : "Everyone gets one guess per 10-second round. After each round, players learn whether their guess was higher or lower."}
+            : "Everyone gets one guess per 15-second round. After each round, players learn whether their guess was higher or lower."}
         </Text>
 
         {isHost ? (
