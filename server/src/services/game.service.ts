@@ -9,7 +9,7 @@ import type {
 } from "../types/game.types";
 import type { RoomModel } from "../models/room.model";
 
-const MAX_PLAYERS = 4;
+const MAX_PLAYERS = 6;
 const MIN_PLAYERS = 2;
 const ROOM_CODE_LENGTH = 6;
 const GUESS_MIN = 1;
