@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -20,8 +20,13 @@ export default function GameScreen() {
   const room = useGameStore((state) => state.room);
   const lastGuessResult = useGameStore((state) => state.lastGuessResult);
   const guessHistory = useGameStore((state) => state.guessHistory);
+  const personalSecretNumber = useGameStore((state) => state.personalSecretNumber);
   const errorMessage = useGameStore((state) => state.errorMessage);
   const setErrorMessage = useGameStore((state) => state.setErrorMessage);
+  const setPersonalSecretNumber = useGameStore((state) => state.setPersonalSecretNumber);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const previousOpponentReadyRef = useRef(false);
+  const previousRoundStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!player || !room) {
@@ -59,6 +64,20 @@ export default function GameScreen() {
     }
   }, [room?.roundStatus]);
 
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setToastMessage(null);
+    }, 2800);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [toastMessage]);
+
   const latestFeedback = !lastGuessResult
     ? room?.gameMode === "versus"
       ? "Submit one guess per round to learn whether your opponent's secret number is higher, lower, or correct."
@@ -79,11 +98,35 @@ export default function GameScreen() {
   const roundDurationSeconds = room.roundDurationSeconds ?? 15;
   const hasSubmitted = submittedPlayerIds.includes(player.id);
   const hasSubmittedSecret = secretSubmittedPlayerIds.includes(player.id);
+  const opponentHasSubmittedSecret = secretSubmittedPlayerIds.some((playerId) => playerId !== player.id);
   const isCollecting = room.roundStatus === "collecting";
   const isSecretSetup = gameMode === "versus" && room.roundStatus === "setup";
   const secondsRemaining = room.roundEndsAt
     ? Math.max(0, Math.ceil((room.roundEndsAt - currentTime) / 1000))
     : 0;
+
+  useEffect(() => {
+    if (gameMode !== "versus") {
+      previousOpponentReadyRef.current = false;
+      previousRoundStatusRef.current = room.roundStatus;
+      return;
+    }
+
+    if (opponentHasSubmittedSecret && !previousOpponentReadyRef.current && room.roundStatus === "setup") {
+      setToastMessage("Your opponent has locked in a secret number.");
+    }
+
+    if (
+      room.roundStatus === "collecting" &&
+      previousRoundStatusRef.current === "setup" &&
+      personalSecretNumber !== null
+    ) {
+      setToastMessage("Your opponent is ready. Round 1 has started.");
+    }
+
+    previousOpponentReadyRef.current = opponentHasSubmittedSecret;
+    previousRoundStatusRef.current = room.roundStatus;
+  }, [gameMode, opponentHasSubmittedSecret, personalSecretNumber, room.roundStatus]);
 
   const handleSubmitSecretNumber = async () => {
     const parsedSecretNumber = Number(secretNumber);
@@ -97,6 +140,8 @@ export default function GameScreen() {
       setIsSubmittingSecret(true);
       setErrorMessage(null);
       await setSecretNumber(room.roomId, parsedSecretNumber);
+      setPersonalSecretNumber(parsedSecretNumber);
+      setToastMessage("Your secret number is locked in.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not lock in your secret number.");
     } finally {
@@ -138,6 +183,17 @@ export default function GameScreen() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.label}>{isSecretSetup ? "Secret setup" : "Round live"}</Text>
+        {gameMode === "versus" && personalSecretNumber !== null ? (
+          <View style={styles.secretBanner}>
+            <Text style={styles.secretBannerLabel}>Your secret number</Text>
+            <Text style={styles.secretBannerValue}>{personalSecretNumber}</Text>
+          </View>
+        ) : null}
+        {toastMessage ? (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        ) : null}
         <Text style={styles.title}>
           {gameMode === "versus" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the secret number"}
         </Text>
@@ -155,8 +211,12 @@ export default function GameScreen() {
           <>
             <Text style={styles.status}>
               {hasSubmittedSecret
-                ? "Your secret number is locked in. Waiting for the other player."
-                : "Choose your secret number before round 1 can begin."}
+                ? opponentHasSubmittedSecret
+                  ? "Both secret numbers are ready. Starting the duel..."
+                  : "Your secret number is locked in. Waiting for the other player."
+                : opponentHasSubmittedSecret
+                  ? "Your opponent already picked a secret number. Choose yours to begin."
+                  : "Choose your secret number before round 1 can begin."}
             </Text>
             <TextField
               editable={!hasSubmittedSecret}
@@ -253,6 +313,42 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 15,
     lineHeight: 22
+  },
+  secretBanner: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 18,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 4
+  },
+  secretBannerLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.8
+  },
+  secretBannerValue: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: "800"
+  },
+  toast: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.success,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  toastText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "600"
   },
   card: {
     backgroundColor: colors.surface,

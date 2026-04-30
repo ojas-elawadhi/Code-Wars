@@ -18,10 +18,12 @@ interface GameStore {
   gameState: GameState;
   lastGuessResult: GuessResultPayload | null;
   guessHistory: GuessHistoryItem[];
+  personalSecretNumber: number | null;
   isConnected: boolean;
   errorMessage: string | null;
   setConnectionStatus: (isConnected: boolean) => void;
   setErrorMessage: (message: string | null) => void;
+  setPersonalSecretNumber: (value: number | null) => void;
   setSession: (player: Player, room: PublicRoom, fallbackGameMode?: GameMode) => void;
   setRoom: (room: PublicRoom) => void;
   setGameStarted: (payload: GameStartedPayload) => void;
@@ -37,6 +39,7 @@ const initialState = {
   gameState: "waiting" as GameState,
   lastGuessResult: null,
   guessHistory: [] as GuessHistoryItem[],
+  personalSecretNumber: null,
   isConnected: false,
   errorMessage: null
 };
@@ -76,11 +79,13 @@ export const useGameStore = create<GameStore>((set) => ({
   ...initialState,
   setConnectionStatus: (isConnected) => set({ isConnected }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
+  setPersonalSecretNumber: (personalSecretNumber) => set({ personalSecretNumber }),
   setSession: (player, room, fallbackGameMode) =>
     set({
       player,
       room: normalizeRoom(room, { fallbackGameMode }),
       gameState: room.gameState,
+      personalSecretNumber: null,
       errorMessage: null
     }),
   setRoom: (room) =>
@@ -92,6 +97,7 @@ export const useGameStore = create<GameStore>((set) => ({
     set((state) => ({
       room: normalizeRoom(room, { previousRoom: state.room }),
       gameState: room.gameState,
+      personalSecretNumber: null,
       lastGuessResult: null,
       guessHistory: [],
       errorMessage: null
@@ -131,6 +137,7 @@ export const useGameStore = create<GameStore>((set) => ({
       gameState: "waiting",
       lastGuessResult: null,
       guessHistory: [],
+      personalSecretNumber: null,
       errorMessage: null
     })),
   resetAll: () => set(initialState)
