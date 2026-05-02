@@ -9,8 +9,7 @@ import { colors, spacing } from "../utils/theme";
 type RuleMode = "classic" | "duel";
 
 export default function VsAiSetupScreen() {
-  const [ruleMode, setRuleMode] = useState<RuleMode>("duel");
-  const isClassicComingSoon = ruleMode === "classic";
+  const [ruleMode, setRuleMode] = useState<RuleMode>("classic");
 
   return (
     <ScreenContainer>
@@ -37,7 +36,7 @@ export default function VsAiSetupScreen() {
             ]}
           >
             <Text style={styles.modeTitle}>Classic</Text>
-            <Text style={styles.modeText}>You and the AI race to one shared hidden number. Coming soon.</Text>
+            <Text style={styles.modeText}>You and the AI race to one shared hidden number.</Text>
           </Pressable>
 
           <Pressable
@@ -54,19 +53,16 @@ export default function VsAiSetupScreen() {
         </View>
 
         <PrimaryButton
-          disabled={isClassicComingSoon}
-          label={isClassicComingSoon ? "VS AI Classic Coming Soon" : "Play VS AI Duel"}
+          label={ruleMode === "classic" ? "Play VS AI Classic" : "Play VS AI Duel"}
           onPress={() => {
-            if (!isClassicComingSoon) {
-              router.push("/vs-ai-duel");
-            }
+            router.push(ruleMode === "classic" ? "/vs-ai-classic" : "/vs-ai-duel");
           }}
         />
 
         <Text style={styles.helper}>
-          {isClassicComingSoon
-            ? "VS AI Classic will let you and the AI chase the same hidden number."
-            : "VS AI Duel is ready now if you want alternating secret-number guesses."}
+          {ruleMode === "classic"
+            ? "VS AI Classic is a shared-target race where both of you chase the same hidden number."
+            : "VS AI Duel lets both sides protect their own secret numbers and guess each other."}
         </Text>
       </View>
     </ScreenContainer>
