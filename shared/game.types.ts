@@ -2,6 +2,7 @@ export type GameState = "waiting" | "playing" | "finished";
 export type GuessFeedback = "higher" | "lower" | "correct" | "missed";
 export type RoundStatus = "idle" | "setup" | "collecting" | "revealing";
 export type OnlineMode = "classic" | "duel";
+export type Difficulty = "easy" | "hard" | "impossible";
 
 export interface Player {
   id: string;
@@ -13,6 +14,8 @@ export interface PublicRoom {
   players: Player[];
   gameState: GameState;
   mode: OnlineMode;
+  difficulty: Difficulty;
+  maxNumber: number;
   maxPlayers: number;
   winner: string | null;
   winnerIds: string[];
@@ -28,6 +31,7 @@ export interface PublicRoom {
 export interface CreateRoomPayload {
   playerName: string;
   mode: OnlineMode;
+  difficulty: Difficulty;
 }
 
 export interface JoinRoomPayload {

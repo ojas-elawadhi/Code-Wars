@@ -1,22 +1,25 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import type { GuessFeedback } from "../types/game.types";
+import type { Difficulty, GuessFeedback } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
+import { getDifficultyConfig, getDifficultyRangeLabel, parseDifficulty } from "../../shared/difficulty";
 
 interface PracticeGuessEntry {
   guess: number;
   result: GuessFeedback;
 }
 
-const randomNumber = () => Math.floor(Math.random() * 100) + 1;
-
 export default function PracticeScreen() {
-  const [secretNumber, setSecretNumber] = useState(randomNumber);
+  const params = useLocalSearchParams<{ difficulty?: string }>();
+  const difficulty: Difficulty = parseDifficulty(params.difficulty);
+  const difficultyConfig = getDifficultyConfig(difficulty);
+  const digitLimit = String(difficultyConfig.maxNumber).length;
+  const [secretNumber, setSecretNumber] = useState(() => Math.floor(Math.random() * difficultyConfig.maxNumber) + 1);
   const [guess, setGuess] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<PracticeGuessEntry | null>(null);
@@ -25,7 +28,7 @@ export default function PracticeScreen() {
 
   const latestFeedback = useMemo(() => {
     if (!lastResult) {
-      return "Guess a number from 1 to 100. You will get an instant higher or lower hint after each try.";
+      return `Guess a number from ${getDifficultyRangeLabel(difficulty)}. You will get an instant higher or lower hint after each try.`;
     }
 
     if (lastResult.result === "correct") {
@@ -33,13 +36,13 @@ export default function PracticeScreen() {
     }
 
     return `Your guess of ${lastResult.guess} is ${lastResult.result}.`;
-  }, [lastResult]);
+  }, [difficulty, lastResult]);
 
   const handleSubmitGuess = () => {
     const parsedGuess = Number(guess);
 
-    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100.");
+    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > difficultyConfig.maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${difficultyConfig.maxNumber}.`);
       return;
     }
 
@@ -62,7 +65,7 @@ export default function PracticeScreen() {
   };
 
   const handlePlayAgain = () => {
-    setSecretNumber(randomNumber());
+    setSecretNumber(Math.floor(Math.random() * difficultyConfig.maxNumber) + 1);
     setGuess("");
     setErrorMessage(null);
     setLastResult(null);
@@ -80,7 +83,7 @@ export default function PracticeScreen() {
         <Text style={styles.eyebrow}>Practice</Text>
         <Text style={styles.title}>Single Player</Text>
         <Text style={styles.subtitle}>
-          The game picked a number from 1 to 100. Keep guessing until you find it.
+          The game picked a hidden number in the {getDifficultyRangeLabel(difficulty)} range. Keep guessing until you find it.
         </Text>
       </View>
 
@@ -89,7 +92,7 @@ export default function PracticeScreen() {
           editable={!isComplete}
           keyboardType="numeric"
           label="Your guess"
-          maxLength={3}
+          maxLength={digitLimit}
           onChangeText={setGuess}
           placeholder={isComplete ? "Round complete" : "Pick a number"}
           value={guess}
@@ -112,7 +115,7 @@ export default function PracticeScreen() {
       {isComplete ? (
         <View style={styles.successCard}>
           <Text style={styles.successTitle}>You found it in {guessHistory.length} guesses.</Text>
-          <Text style={styles.successText}>Start a fresh practice round or head back home.</Text>
+          <Text style={styles.successText}>Start another {difficultyConfig.label.toLowerCase()} practice round or head back home.</Text>
           <PrimaryButton label="Play Again" onPress={handlePlayAgain} />
         </View>
       ) : null}

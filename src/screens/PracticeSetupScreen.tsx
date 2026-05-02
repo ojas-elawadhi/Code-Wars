@@ -1,15 +1,17 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
+import type { Difficulty } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
+import { DEFAULT_DIFFICULTY, DIFFICULTY_CONFIG, getDifficultyRangeLabel } from "../../shared/difficulty";
+import { useState } from "react";
 
-type RuleMode = "classic" | "duel";
+const difficultyOrder: Difficulty[] = ["easy", "hard", "impossible"];
 
-export default function VsAiSetupScreen() {
-  const [ruleMode, setRuleMode] = useState<RuleMode>("classic");
+export default function PracticeSetupScreen() {
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
 
   return (
     <ScreenContainer>
@@ -18,55 +20,40 @@ export default function VsAiSetupScreen() {
       </Pressable>
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>VS AI</Text>
-        <Text style={styles.title}>Choose A Mode</Text>
+        <Text style={styles.eyebrow}>Single Player</Text>
+        <Text style={styles.title}>Choose Difficulty</Text>
         <Text style={styles.subtitle}>
-          Pick whether you want to race the AI toward one shared target or duel with secret numbers.
+          Practice keeps the rules simple. Pick the number range you want to play with, then start guessing.
         </Text>
       </View>
 
       <View style={styles.card}>
         <View style={styles.modeRow}>
-          <Pressable
-            onPress={() => setRuleMode("classic")}
-            style={({ pressed }) => [
-              styles.modeCard,
-              ruleMode === "classic" && styles.modeCardActive,
-              pressed && styles.modeCardPressed
-            ]}
-          >
-            <Text style={styles.modeTitle}>Classic</Text>
-            <Text style={styles.modeText}>You and the AI race to one shared hidden number.</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setRuleMode("duel")}
-            style={({ pressed }) => [
-              styles.modeCard,
-              ruleMode === "duel" && styles.modeCardActive,
-              pressed && styles.modeCardPressed
-            ]}
-          >
-            <Text style={styles.modeTitle}>Duel</Text>
-            <Text style={styles.modeText}>You and the AI protect your own secret numbers and guess each other.</Text>
-          </Pressable>
+          {difficultyOrder.map((currentDifficulty) => (
+            <Pressable
+              key={currentDifficulty}
+              onPress={() => setDifficulty(currentDifficulty)}
+              style={({ pressed }) => [
+                styles.modeCard,
+                difficulty === currentDifficulty && styles.modeCardActive,
+                pressed && styles.modeCardPressed
+              ]}
+            >
+              <Text style={styles.modeTitle}>{DIFFICULTY_CONFIG[currentDifficulty].label}</Text>
+              <Text style={styles.modeText}>Range {getDifficultyRangeLabel(currentDifficulty)}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <PrimaryButton
-          label={ruleMode === "classic" ? "Play VS AI Classic" : "Play VS AI Duel"}
+          label={`Play ${DIFFICULTY_CONFIG[difficulty].label}`}
           onPress={() => {
             router.push({
-              pathname: "/vs-ai-difficulty",
-              params: { mode: ruleMode }
+              pathname: "/practice-game",
+              params: { difficulty }
             });
           }}
         />
-
-        <Text style={styles.helper}>
-          {ruleMode === "classic"
-            ? "VS AI Classic is a shared-target race where both of you chase the same hidden number."
-            : "VS AI Duel lets both sides protect their own secret numbers and guess each other."}
-        </Text>
       </View>
     </ScreenContainer>
   );
@@ -139,11 +126,6 @@ const styles = StyleSheet.create({
   modeText: {
     color: colors.textMuted,
     fontSize: 14,
-    lineHeight: 20
-  },
-  helper: {
-    color: colors.textMuted,
-    fontSize: 13,
     lineHeight: 20
   }
 });

@@ -1,12 +1,13 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import type { GuessFeedback } from "../types/game.types";
+import type { Difficulty, GuessFeedback } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
+import { getDifficultyConfig, getDifficultyRangeLabel, parseDifficulty } from "../../shared/difficulty";
 
 interface AiDuelRoundEntry {
   roundNumber: number;
@@ -45,13 +46,17 @@ const formatAiLine = (entry: AiDuelRoundEntry) => {
 };
 
 export default function VsAiDuelScreen() {
+  const params = useLocalSearchParams<{ difficulty?: string }>();
+  const difficulty: Difficulty = parseDifficulty(params.difficulty);
+  const difficultyConfig = getDifficultyConfig(difficulty);
+  const digitLimit = String(difficultyConfig.maxNumber).length;
   const [playerSecretInput, setPlayerSecretInput] = useState("");
   const [playerSecretNumber, setPlayerSecretNumber] = useState<number | null>(null);
   const [aiSecretNumber, setAiSecretNumber] = useState<number | null>(null);
   const [guess, setGuess] = useState("");
   const [roundNumber, setRoundNumber] = useState(1);
   const [aiMin, setAiMin] = useState(1);
-  const [aiMax, setAiMax] = useState(100);
+  const [aiMax, setAiMax] = useState(difficultyConfig.maxNumber);
   const [lastRound, setLastRound] = useState<AiDuelRoundEntry | null>(null);
   const [history, setHistory] = useState<AiDuelRoundEntry[]>([]);
   const [winner, setWinner] = useState<DuelWinner>(null);
@@ -62,29 +67,29 @@ export default function VsAiDuelScreen() {
 
   const latestFeedback = useMemo(() => {
     if (!lastRound) {
-      return "Choose your secret number, then guess the AI's hidden number while it tries to crack yours.";
+      return `Choose your secret number in the ${getDifficultyRangeLabel(difficulty)} range, then guess the AI's hidden number while it tries to crack yours.`;
     }
 
     const playerLine = `Your guess ${lastRound.playerGuess}: ${formatPlayerHint(lastRound.playerResult)}`;
     const aiLine = formatAiLine(lastRound);
 
     return `${playerLine} ${aiLine}`;
-  }, [lastRound]);
+  }, [difficulty, lastRound]);
 
   const handleStartDuel = () => {
     const parsedSecretNumber = Number(playerSecretInput);
 
-    if (!Number.isInteger(parsedSecretNumber) || parsedSecretNumber < 1 || parsedSecretNumber > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100 for your secret number.");
+    if (!Number.isInteger(parsedSecretNumber) || parsedSecretNumber < 1 || parsedSecretNumber > difficultyConfig.maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${difficultyConfig.maxNumber} for your secret number.`);
       return;
     }
 
     setPlayerSecretNumber(parsedSecretNumber);
-    setAiSecretNumber(randomBetween(1, 100));
+    setAiSecretNumber(randomBetween(1, difficultyConfig.maxNumber));
     setGuess("");
     setRoundNumber(1);
     setAiMin(1);
-    setAiMax(100);
+    setAiMax(difficultyConfig.maxNumber);
     setLastRound(null);
     setHistory([]);
     setWinner(null);
@@ -98,8 +103,8 @@ export default function VsAiDuelScreen() {
 
     const parsedGuess = Number(guess);
 
-    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100.");
+    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > difficultyConfig.maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${difficultyConfig.maxNumber}.`);
       return;
     }
 
@@ -153,7 +158,7 @@ export default function VsAiDuelScreen() {
     setGuess("");
     setRoundNumber(1);
     setAiMin(1);
-    setAiMax(100);
+    setAiMax(difficultyConfig.maxNumber);
     setLastRound(null);
     setHistory([]);
     setWinner(null);
@@ -171,8 +176,8 @@ export default function VsAiDuelScreen() {
         <Text style={styles.title}>{isSetup ? "Choose Your Secret Number" : "Guess The AI's Number"}</Text>
         <Text style={styles.subtitle}>
           {isSetup
-            ? "Pick a number from 1 to 100. The AI will protect one too, and both of you will start guessing each round."
-            : "Each round, you guess the AI's number and the AI guesses yours using higher or lower hints."}
+            ? `Pick a number in the ${getDifficultyRangeLabel(difficulty)} range. The AI will protect one too, and both of you will start guessing each round.`
+            : `Each round, you guess the AI's number and the AI guesses yours using higher or lower hints inside the ${getDifficultyRangeLabel(difficulty)} range.`}
         </Text>
       </View>
 
@@ -189,7 +194,7 @@ export default function VsAiDuelScreen() {
             <TextField
               keyboardType="numeric"
               label="Your secret number"
-              maxLength={3}
+              maxLength={digitLimit}
               onChangeText={setPlayerSecretInput}
               placeholder="Pick a secret number"
               value={playerSecretInput}
@@ -218,7 +223,7 @@ export default function VsAiDuelScreen() {
               editable={!isComplete}
               keyboardType="numeric"
               label="Your guess for the AI"
-              maxLength={3}
+              maxLength={digitLimit}
               onChangeText={setGuess}
               placeholder={isComplete ? "Round complete" : "Guess the AI number"}
               value={guess}

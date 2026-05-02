@@ -1,5 +1,6 @@
 import type { Player } from "../types/game.types";
 import type {
+  Difficulty,
   GameOverPayload,
   GuessFeedback,
   OnlineMode,
@@ -9,13 +10,13 @@ import type {
   SubmitGuessResult
 } from "../types/game.types";
 import type { RoomModel } from "../models/room.model";
+import { getDifficultyConfig } from "../../../shared/difficulty";
 
 const CLASSIC_MAX_PLAYERS = 6;
 const DUEL_MAX_PLAYERS = 2;
 const MIN_PLAYERS = 2;
 const ROOM_CODE_LENGTH = 6;
 const GUESS_MIN = 1;
-const GUESS_MAX = 100;
 export const ROUND_DURATION_MS = 15000;
 export const ROUND_REVEAL_MS = 2500;
 
@@ -23,15 +24,18 @@ class GameService {
   private readonly rooms = new Map<string, RoomModel>();
   private readonly playerRooms = new Map<string, string>();
 
-  createRoom(host: Player, mode: OnlineMode): PublicRoom {
+  createRoom(host: Player, mode: OnlineMode, difficulty: Difficulty): PublicRoom {
     this.validatePlayerName(host.name);
 
     const roomId = this.generateRoomId();
+    const difficultyConfig = getDifficultyConfig(difficulty);
     const room: RoomModel = {
       roomId,
       players: [host],
       gameState: "waiting",
       mode,
+      difficulty,
+      maxNumber: difficultyConfig.maxNumber,
       maxPlayers: this.getMaxPlayersForMode(mode),
       secretNumber: 0,
       playerSecretNumbers: new Map(),
@@ -109,7 +113,7 @@ class GameService {
     }
 
     room.secretSubmittedPlayerIds = [];
-    room.secretNumber = this.randomNumber(GUESS_MIN, GUESS_MAX);
+    room.secretNumber = this.randomNumber(GUESS_MIN, room.maxNumber);
     this.beginRound(room, 1);
 
     return this.toPublicRoom(room);
@@ -135,7 +139,7 @@ class GameService {
       throw new Error("You already locked in your secret number.");
     }
 
-    room.playerSecretNumbers.set(playerId, this.validateGuess(secretNumber));
+    room.playerSecretNumbers.set(playerId, this.validateGuess(secretNumber, room.maxNumber));
     room.secretSubmittedPlayerIds = [...room.secretSubmittedPlayerIds, playerId];
 
     if (room.secretSubmittedPlayerIds.length === room.players.length) {
@@ -181,7 +185,7 @@ class GameService {
       throw new Error("You already submitted a guess this round.");
     }
 
-    const normalizedGuess = this.validateGuess(guess);
+    const normalizedGuess = this.validateGuess(guess, room.maxNumber);
 
     room.roundGuesses.set(playerId, normalizedGuess);
     room.submittedPlayerIds = [...room.submittedPlayerIds, playerId];
@@ -379,6 +383,8 @@ class GameService {
       players: [...room.players],
       gameState: room.gameState,
       mode: room.mode,
+      difficulty: room.difficulty,
+      maxNumber: room.maxNumber,
       maxPlayers: room.maxPlayers,
       winner: room.winner,
       winnerIds: [...room.winnerIds],
@@ -465,9 +471,9 @@ class GameService {
     }
   }
 
-  private validateGuess(guess: number) {
-    if (!Number.isInteger(guess) || guess < GUESS_MIN || guess > GUESS_MAX) {
-      throw new Error("Guesses must be whole numbers between 1 and 100.");
+  private validateGuess(guess: number, maxNumber: number) {
+    if (!Number.isInteger(guess) || guess < GUESS_MIN || guess > maxNumber) {
+      throw new Error(`Guesses must be whole numbers between 1 and ${maxNumber}.`);
     }
 
     return guess;

@@ -1,1 +1,1 @@
-export { default } from "../src/screens/PracticeScreen";
+export { default } from "../src/screens/PracticeSetupScreen";

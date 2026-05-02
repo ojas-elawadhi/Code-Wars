@@ -1,12 +1,13 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import type { GuessFeedback } from "../types/game.types";
+import type { Difficulty, GuessFeedback } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
+import { getDifficultyConfig, getDifficultyRangeLabel, parseDifficulty } from "../../shared/difficulty";
 
 interface AiClassicRoundEntry {
   roundNumber: number;
@@ -19,7 +20,6 @@ interface AiClassicRoundEntry {
 type ClassicWinner = "player" | "ai" | "tie" | null;
 
 const randomBetween = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-const randomNumber = () => randomBetween(1, 100);
 
 const formatFeedback = (result: GuessFeedback) => {
   if (result === "higher") {
@@ -38,11 +38,15 @@ const formatFeedback = (result: GuessFeedback) => {
 };
 
 export default function VsAiClassicScreen() {
-  const [targetNumber, setTargetNumber] = useState(randomNumber);
+  const params = useLocalSearchParams<{ difficulty?: string }>();
+  const difficulty: Difficulty = parseDifficulty(params.difficulty);
+  const difficultyConfig = getDifficultyConfig(difficulty);
+  const digitLimit = String(difficultyConfig.maxNumber).length;
+  const [targetNumber, setTargetNumber] = useState(() => randomBetween(1, difficultyConfig.maxNumber));
   const [guess, setGuess] = useState("");
   const [roundNumber, setRoundNumber] = useState(1);
   const [aiMin, setAiMin] = useState(1);
-  const [aiMax, setAiMax] = useState(100);
+  const [aiMax, setAiMax] = useState(difficultyConfig.maxNumber);
   const [lastRound, setLastRound] = useState<AiClassicRoundEntry | null>(null);
   const [history, setHistory] = useState<AiClassicRoundEntry[]>([]);
   const [winner, setWinner] = useState<ClassicWinner>(null);
@@ -52,20 +56,20 @@ export default function VsAiClassicScreen() {
 
   const latestFeedback = useMemo(() => {
     if (!lastRound) {
-      return "You and the AI are chasing the same hidden number. Submit one guess each round and use the higher or lower hints to narrow it down.";
+      return `You and the AI are chasing the same hidden number in the ${getDifficultyRangeLabel(difficulty)} range. Submit one guess each round and use the higher or lower hints to narrow it down.`;
     }
 
     const playerLine = `Your guess ${lastRound.playerGuess}: ${formatFeedback(lastRound.playerResult)}`;
     const aiLine = `AI guess ${lastRound.aiGuess}: ${formatFeedback(lastRound.aiResult)}`;
 
     return `${playerLine} ${aiLine}`;
-  }, [lastRound]);
+  }, [difficulty, lastRound]);
 
   const handleSubmitGuess = () => {
     const parsedGuess = Number(guess);
 
-    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100.");
+    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > difficultyConfig.maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${difficultyConfig.maxNumber}.`);
       return;
     }
 
@@ -113,11 +117,11 @@ export default function VsAiClassicScreen() {
   };
 
   const handlePlayAgain = () => {
-    setTargetNumber(randomNumber());
+    setTargetNumber(randomBetween(1, difficultyConfig.maxNumber));
     setGuess("");
     setRoundNumber(1);
     setAiMin(1);
-    setAiMax(100);
+    setAiMax(difficultyConfig.maxNumber);
     setLastRound(null);
     setHistory([]);
     setWinner(null);
@@ -134,7 +138,7 @@ export default function VsAiClassicScreen() {
         <Text style={styles.eyebrow}>VS AI Classic</Text>
         <Text style={styles.title}>Race To The Number</Text>
         <Text style={styles.subtitle}>
-          You and the AI are guessing the same hidden number from 1 to 100. Whoever finds it first wins.
+          You and the AI are guessing the same hidden number in the {getDifficultyRangeLabel(difficulty)} range. Whoever finds it first wins.
         </Text>
       </View>
 
@@ -158,7 +162,7 @@ export default function VsAiClassicScreen() {
           editable={!isComplete}
           keyboardType="numeric"
           label="Your guess"
-          maxLength={3}
+          maxLength={digitLimit}
           onChangeText={setGuess}
           placeholder={isComplete ? "Round complete" : "Pick a number"}
           value={guess}

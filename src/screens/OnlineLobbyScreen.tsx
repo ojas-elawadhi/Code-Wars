@@ -10,6 +10,7 @@ import { ScreenContainer } from "../components/ScreenContainer";
 import { leaveRoom, startGame } from "../socket/onlineSocket";
 import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
+import { DIFFICULTY_CONFIG, getDifficultyRangeLabel } from "../../shared/difficulty";
 
 export default function OnlineLobbyScreen() {
   const [isStarting, setIsStarting] = useState(false);
@@ -46,21 +47,23 @@ export default function OnlineLobbyScreen() {
 
   const winnerIds = room.winnerIds ?? [];
   const mode = room.mode ?? "classic";
+  const difficulty = room.difficulty ?? "easy";
+  const maxNumber = room.maxNumber ?? DIFFICULTY_CONFIG[difficulty].maxNumber;
   const maxPlayers = room.maxPlayers ?? (mode === "duel" ? 2 : 6);
   const lastWinner = room.players.find((currentPlayer) => currentPlayer.id === room.winner);
   const hasTie = winnerIds.length > 1;
   const canStart = mode === "duel" ? room.players.length === 2 : room.players.length >= 2;
-  const roomModeLabel = mode === "duel" ? "Online Duel" : "Online Classic";
+  const roomModeLabel = `${mode === "duel" ? "Online Duel" : "Online Classic"} • ${DIFFICULTY_CONFIG[difficulty].label}`;
   const infoMessage =
     mode === "duel"
       ? room.players.length < 2
         ? room.players.length === 1
           ? "Waiting for other player to join the duel."
           : "Duel mode needs exactly 2 players before the host can start."
-        : "Each player chooses a secret number, then both players get one guess per 15-second round to crack the other number."
+        : `Each player chooses a secret number in the 1-${maxNumber} range, then both players get one guess per 15-second round to crack the other number.`
       : room.players.length < 2
         ? "At least 2 players are needed to start."
-        : "Everyone gets one guess per 15-second round. After each round, players learn whether their guess was higher or lower.";
+        : `Everyone gets one guess per 15-second round in the ${getDifficultyRangeLabel(difficulty)} range. After each round, players learn whether their guess was higher or lower.`;
 
   const handleStartGame = async () => {
     try {

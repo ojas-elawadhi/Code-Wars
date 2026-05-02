@@ -7,15 +7,18 @@ import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
 import { createRoom, joinRoom } from "../socket/onlineSocket";
 import { useOnlineGameStore } from "../store/useOnlineGameStore";
-import type { OnlineMode } from "../types/game.types";
+import type { Difficulty, OnlineMode } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
+import { DEFAULT_DIFFICULTY, DIFFICULTY_CONFIG, getDifficultyRangeLabel } from "../../shared/difficulty";
 
 type RuleMode = "classic" | "duel";
+const difficultyOrder: Difficulty[] = ["easy", "hard", "impossible"];
 
 export default function OnlineSetupScreen() {
   const [playerName, setPlayerName] = useState("");
   const [roomId, setRoomId] = useState("");
   const [ruleMode, setRuleMode] = useState<RuleMode>("classic");
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const [loadingAction, setLoadingAction] = useState<"create" | "join" | null>(null);
 
   const isConnected = useOnlineGameStore((state) => state.isConnected);
@@ -30,7 +33,7 @@ export default function OnlineSetupScreen() {
       setLoadingAction("create");
       setErrorMessage(null);
 
-      const response = await createRoom(playerName.trim(), onlineMode);
+      const response = await createRoom(playerName.trim(), onlineMode, difficulty);
       setSession(response.player, response.room, onlineMode);
       router.replace("/online-lobby");
     } catch (error) {
@@ -68,7 +71,7 @@ export default function OnlineSetupScreen() {
         <Text style={styles.eyebrow}>Online</Text>
         <Text style={styles.title}>Choose A Mode</Text>
         <Text style={styles.subtitle}>
-          Pick the room style first, then create a room or join one with a code.
+          Pick the room style, choose the number range for new rooms, then create a room or join one with a code.
         </Text>
       </View>
 
@@ -107,9 +110,30 @@ export default function OnlineSetupScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.modeRow}>
+          {difficultyOrder.map((currentDifficulty) => (
+            <Pressable
+              key={currentDifficulty}
+              onPress={() => setDifficulty(currentDifficulty)}
+              style={({ pressed }) => [
+                styles.modeCard,
+                difficulty === currentDifficulty && styles.modeCardActive,
+                pressed && styles.modeCardPressed
+              ]}
+            >
+              <Text style={styles.modeTitle}>{DIFFICULTY_CONFIG[currentDifficulty].label}</Text>
+              <Text style={styles.modeText}>Range {getDifficultyRangeLabel(currentDifficulty)}</Text>
+            </Pressable>
+          ))}
+        </View>
+
         <PrimaryButton
           disabled={!canCreate}
-          label={ruleMode === "classic" ? "Create Online Classic Room" : "Create Online Duel Room"}
+          label={
+            ruleMode === "classic"
+              ? `Create ${DIFFICULTY_CONFIG[difficulty].label} Online Classic Room`
+              : `Create ${DIFFICULTY_CONFIG[difficulty].label} Online Duel Room`
+          }
           loading={loadingAction === "create"}
           onPress={handleCreateRoom}
         />

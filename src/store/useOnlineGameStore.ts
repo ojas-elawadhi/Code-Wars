@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type {
+  Difficulty,
   GameOverPayload,
   GameStartedPayload,
   GameState,
@@ -48,16 +49,21 @@ const normalizeRoom = (
   room: PublicRoom,
   options?: {
     fallbackMode?: OnlineMode;
+    fallbackDifficulty?: Difficulty;
     previousRoom?: PublicRoom | null;
   }
 ): PublicRoom => {
   const legacyRoom = room as Partial<PublicRoom>;
   const mode: OnlineMode =
     legacyRoom.mode ?? options?.previousRoom?.mode ?? options?.fallbackMode ?? "classic";
+  const difficulty: Difficulty =
+    legacyRoom.difficulty ?? options?.previousRoom?.difficulty ?? options?.fallbackDifficulty ?? "easy";
 
   return {
     ...room,
     mode,
+    difficulty,
+    maxNumber: legacyRoom.maxNumber ?? options?.previousRoom?.maxNumber ?? (difficulty === "easy" ? 99 : difficulty === "hard" ? 999 : 9999),
     maxPlayers: legacyRoom.maxPlayers ?? options?.previousRoom?.maxPlayers ?? (mode === "duel" ? 2 : 6),
     winner: legacyRoom.winner ?? options?.previousRoom?.winner ?? null,
     winnerIds:

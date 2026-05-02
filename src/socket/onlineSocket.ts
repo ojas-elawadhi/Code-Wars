@@ -4,6 +4,7 @@ import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import type {
   ClientToServerEvents,
   CreateOrJoinRoomResponse,
+  Difficulty,
   OnlineMode,
   ServerToClientEvents,
   SocketAck,
@@ -143,11 +144,11 @@ export const connectSocket = () => {
   return activeSocket;
 };
 
-export const createRoom = async (playerName: string, mode: OnlineMode) => {
+export const createRoom = async (playerName: string, mode: OnlineMode, difficulty: Difficulty) => {
   const activeSocket = await ensureConnected();
 
   return emitWithAck<CreateOrJoinRoomResponse>((ack) => {
-    activeSocket.emit("create_room", { playerName, mode }, ack);
+    activeSocket.emit("create_room", { playerName, mode, difficulty }, ack);
   });
 };
 

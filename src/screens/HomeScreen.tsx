@@ -29,7 +29,7 @@ export default function HomeScreen() {
             ]}
           >
             <Text style={styles.modeTitle}>Single Player</Text>
-            <Text style={styles.modeText}>Practice by guessing one hidden number on your own.</Text>
+            <Text style={styles.modeText}>Practice by guessing one hidden number on your own, then pick a difficulty.</Text>
           </Pressable>
 
           <Pressable
@@ -40,7 +40,7 @@ export default function HomeScreen() {
             ]}
           >
             <Text style={styles.modeTitle}>VS AI</Text>
-            <Text style={styles.modeText}>Choose Classic or Duel against the AI on the next screen.</Text>
+            <Text style={styles.modeText}>Choose Classic or Duel against the AI, then pick a difficulty.</Text>
           </Pressable>
 
           <Pressable

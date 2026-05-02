@@ -9,6 +9,7 @@ import { TextField } from "../components/TextField";
 import { makeGuess, setSecretNumber } from "../socket/onlineSocket";
 import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
+import { DIFFICULTY_CONFIG, getDifficultyRangeLabel } from "../../shared/difficulty";
 
 export default function OnlineGameScreen() {
   const [guess, setGuess] = useState("");
@@ -110,7 +111,7 @@ export default function OnlineGameScreen() {
   const latestFeedback = !lastGuessResult
     ? room?.mode === "duel"
       ? "Submit one guess per round to learn whether your opponent's secret number is higher, lower, or correct."
-      : "Submit one number this round to get higher, lower, or correct feedback when the timer ends."
+      : `Submit one number from ${getDifficultyRangeLabel(room?.difficulty ?? "easy")} this round to get higher, lower, or correct feedback when the timer ends.`
     : lastGuessResult.result === "missed"
       ? `You missed round ${lastGuessResult.roundNumber}.`
       : room?.mode === "duel"
@@ -122,6 +123,9 @@ export default function OnlineGameScreen() {
   }
 
   const mode = room.mode ?? "classic";
+  const difficulty = room.difficulty ?? "easy";
+  const maxNumber = room.maxNumber ?? DIFFICULTY_CONFIG[difficulty].maxNumber;
+  const digitLimit = String(maxNumber).length;
   const submittedPlayerIds = room.submittedPlayerIds ?? [];
   const secretSubmittedPlayerIds = room.secretSubmittedPlayerIds ?? [];
   const roundDurationSeconds = room.roundDurationSeconds ?? 15;
@@ -248,8 +252,8 @@ export default function OnlineGameScreen() {
   const handleSubmitSecretNumber = async () => {
     const parsedSecretNumber = Number(secretNumber);
 
-    if (!Number.isInteger(parsedSecretNumber) || parsedSecretNumber < 1 || parsedSecretNumber > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100 for your secret number.");
+    if (!Number.isInteger(parsedSecretNumber) || parsedSecretNumber < 1 || parsedSecretNumber > maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${maxNumber} for your secret number.`);
       return;
     }
 
@@ -279,8 +283,8 @@ export default function OnlineGameScreen() {
 
     const parsedGuess = Number(guess);
 
-    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > 100) {
-      setErrorMessage("Enter a whole number between 1 and 100.");
+    if (!Number.isInteger(parsedGuess) || parsedGuess < 1 || parsedGuess > maxNumber) {
+      setErrorMessage(`Enter a whole number between 1 and ${maxNumber}.`);
       return;
     }
 
@@ -317,9 +321,9 @@ export default function OnlineGameScreen() {
         <Text style={styles.subtitle}>
           {mode === "duel"
             ? isSecretSetup
-              ? "Pick a number from 1 to 100. Your opponent will try to guess it while you try to guess theirs."
-              : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from 1 to 100 to guess your opponent's secret.`
-            : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from 1 to 100 before time runs out.`}
+              ? `Pick a number from ${getDifficultyRangeLabel(difficulty)}. Your opponent will try to guess it while you try to guess theirs.`
+              : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from ${getDifficultyRangeLabel(difficulty)} to guess your opponent's secret.`
+            : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from ${getDifficultyRangeLabel(difficulty)} before time runs out.`}
         </Text>
       </View>
 
@@ -339,7 +343,7 @@ export default function OnlineGameScreen() {
               editable={!hasSubmittedSecret}
               keyboardType="numeric"
               label="Your secret number"
-              maxLength={3}
+              maxLength={digitLimit}
               onChangeText={setSecretNumberInput}
               placeholder={hasSubmittedSecret ? "Secret number saved" : "Pick a secret number"}
               value={secretNumber}
@@ -370,7 +374,7 @@ export default function OnlineGameScreen() {
               editable={isCollecting && !hasSubmitted}
               keyboardType="numeric"
               label={mode === "duel" ? "Your guess for the other player" : "Your guess"}
-              maxLength={3}
+              maxLength={digitLimit}
               onChangeText={setGuess}
               placeholder={isCollecting && !hasSubmitted ? "Pick a number" : "Wait for the next round"}
               value={guess}
