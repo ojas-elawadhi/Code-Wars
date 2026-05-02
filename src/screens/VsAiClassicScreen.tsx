@@ -14,7 +14,6 @@ interface AiClassicRoundEntry {
   playerGuess: number;
   playerResult: GuessFeedback;
   aiGuess: number;
-  aiResult: GuessFeedback;
 }
 
 type ClassicWinner = "player" | "ai" | "tie" | null;
@@ -60,7 +59,7 @@ export default function VsAiClassicScreen() {
     }
 
     const playerLine = `Your guess ${lastRound.playerGuess}: ${formatFeedback(lastRound.playerResult)}`;
-    const aiLine = `AI guess ${lastRound.aiGuess}: ${formatFeedback(lastRound.aiResult)}`;
+    const aiLine = `AI guess: ${lastRound.aiGuess}`;
 
     return `${playerLine} ${aiLine}`;
   }, [difficulty, lastRound]);
@@ -83,8 +82,7 @@ export default function VsAiClassicScreen() {
       roundNumber,
       playerGuess: parsedGuess,
       playerResult,
-      aiGuess,
-      aiResult
+      aiGuess
     };
 
     setLastRound(roundEntry);
@@ -145,7 +143,6 @@ export default function VsAiClassicScreen() {
       <View style={styles.card}>
         <View style={styles.roundHeader}>
           <Text style={styles.roundTitle}>Round {roundNumber}</Text>
-          <Text style={styles.roundMeta}>AI range: {aiMin} - {aiMax}</Text>
         </View>
 
         <Text style={styles.status}>
@@ -217,8 +214,6 @@ export default function VsAiClassicScreen() {
               </Text>
               <Text style={styles.historyText}>
                 AI: {entry.aiGuess}
-                {" -> "}
-                {entry.aiResult}
               </Text>
             </View>
           ))
@@ -278,11 +273,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: "700"
-  },
-  roundMeta: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "600"
   },
   status: {
     color: colors.textMuted,
