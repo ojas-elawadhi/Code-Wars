@@ -1,129 +1,48 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { TextField } from "../components/TextField";
-import { createRoom, joinRoom } from "../socket/socket";
 import { useGameStore } from "../store/useGameStore";
-import type { GameMode } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
 
 export default function HomeScreen() {
-  const [playerName, setPlayerName] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [createMode, setCreateMode] = useState<GameMode>("friends");
-  const [loadingAction, setLoadingAction] = useState<"create" | "join" | null>(null);
-
   const isConnected = useGameStore((state) => state.isConnected);
   const errorMessage = useGameStore((state) => state.errorMessage);
-  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
-  const setSession = useGameStore((state) => state.setSession);
-
-  const handleCreateRoom = async () => {
-    try {
-      setLoadingAction("create");
-      setErrorMessage(null);
-
-      const response = await createRoom(playerName.trim(), createMode);
-      setSession(response.player, response.room, createMode);
-      router.replace("/lobby");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not create room.");
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleJoinRoom = async () => {
-    try {
-      setLoadingAction("join");
-      setErrorMessage(null);
-
-      const response = await joinRoom(roomId.trim().toUpperCase(), playerName.trim());
-      setSession(response.player, response.room);
-      router.replace("/lobby");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Could not join room.");
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const canCreate = playerName.trim().length >= 2;
-  const canJoin = canCreate && roomId.trim().length >= 4;
 
   return (
     <ScreenContainer>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Real-time multiplayer</Text>
+        <Text style={styles.eyebrow}>Game Modes</Text>
         <Text style={styles.title}>Higher or Lower</Text>
         <Text style={styles.subtitle}>
-          Create a room for classic play-with-friends rounds or a 2-player duel where both players protect a secret number and race to crack the other one.
+          Pick how you want to play first, then we&apos;ll take you to the right mode setup.
         </Text>
       </View>
 
       <View style={styles.card}>
-        <TextField
-          autoCapitalize="words"
-          label="Your name"
-          onChangeText={setPlayerName}
-          placeholder="Enter at least 2 characters"
-          value={playerName}
-        />
-
         <View style={styles.modeRow}>
           <Pressable
-            onPress={() => setCreateMode("friends")}
+            onPress={() => router.push("/solo")}
             style={({ pressed }) => [
               styles.modeCard,
-              createMode === "friends" && styles.modeCardActive,
               pressed && styles.modeCardPressed
             ]}
           >
-            <Text style={styles.modeTitle}>Play With Friends</Text>
-            <Text style={styles.modeText}>2 to 6 players guess one shared hidden number.</Text>
+            <Text style={styles.modeTitle}>Solo</Text>
+            <Text style={styles.modeText}>Play against the game, then choose Classic or Duel on the next screen.</Text>
           </Pressable>
 
           <Pressable
-            onPress={() => setCreateMode("versus")}
+            onPress={() => router.push("/private")}
             style={({ pressed }) => [
               styles.modeCard,
-              createMode === "versus" && styles.modeCardActive,
               pressed && styles.modeCardPressed
             ]}
           >
-            <Text style={styles.modeTitle}>Multiplayer Duel</Text>
-            <Text style={styles.modeText}>2 players choose secret numbers and guess each other.</Text>
+            <Text style={styles.modeTitle}>Private</Text>
+            <Text style={styles.modeText}>Create a room code, invite friends, then choose Classic or Duel on the next screen.</Text>
           </Pressable>
         </View>
-
-        <PrimaryButton
-          disabled={!canCreate}
-          label={createMode === "friends" ? "Create Friends Room" : "Create Duel Room"}
-          loading={loadingAction === "create"}
-          onPress={handleCreateRoom}
-        />
-      </View>
-
-      <View style={styles.card}>
-        <TextField
-          autoCapitalize="characters"
-          label="Room code"
-          maxLength={6}
-          onChangeText={(value) => setRoomId(value.toUpperCase())}
-          placeholder="Enter room code"
-          value={roomId}
-        />
-
-        <PrimaryButton
-          disabled={!canJoin}
-          label="Join Room"
-          loading={loadingAction === "join"}
-          onPress={handleJoinRoom}
-          variant="secondary"
-        />
       </View>
 
       <View style={styles.footer}>
@@ -176,10 +95,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: spacing.md,
     gap: spacing.xs
-  },
-  modeCardActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.surface
   },
   modeCardPressed: {
     opacity: 0.9

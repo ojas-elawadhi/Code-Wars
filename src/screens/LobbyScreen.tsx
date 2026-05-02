@@ -50,7 +50,7 @@ export default function LobbyScreen() {
   const lastWinner = room.players.find((currentPlayer) => currentPlayer.id === room.winner);
   const hasTie = winnerIds.length > 1;
   const canStart = gameMode === "versus" ? room.players.length === 2 : room.players.length >= 2;
-  const roomModeLabel = gameMode === "versus" ? "Multiplayer Duel" : "Play With Friends";
+  const roomModeLabel = gameMode === "versus" ? "Private Duel" : "Private Classic";
   const infoMessage =
     gameMode === "versus"
       ? room.players.length < 2

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
@@ -32,6 +33,7 @@ export default function GameScreen() {
   const previousSummaryRoundRef = useRef<number | null>(null);
   const roundSummaryOpacity = useRef(new Animated.Value(0)).current;
   const roundSummaryTranslateY = useRef(new Animated.Value(-12)).current;
+  const roundSummaryBackdropOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!player || !room) {
@@ -135,12 +137,12 @@ export default function GameScreen() {
     !lastGuessResult || gameMode !== "versus"
       ? null
       : lastGuessResult.result === "missed"
-        ? "You did not submit a guess this round."
+        ? { label: "No Guess", icon: "remove" as const, color: colors.textMuted }
         : lastGuessResult.result === "higher"
-          ? "Your guess is lower than your opponent's locked number."
+          ? { label: "Higher", icon: "arrow-up" as const, color: colors.success }
           : lastGuessResult.result === "lower"
-            ? "Your guess is higher than your opponent's locked number."
-            : "Your guess matched your opponent's locked number.";
+            ? { label: "Lower", icon: "arrow-down" as const, color: colors.danger }
+            : { label: "Correct", icon: "checkmark" as const, color: colors.success };
 
   useEffect(() => {
     if (gameMode !== "versus") {
@@ -179,9 +181,16 @@ export default function GameScreen() {
     setCanNavigateToResult(false);
     roundSummaryOpacity.setValue(0);
     roundSummaryTranslateY.setValue(-12);
+    roundSummaryBackdropOpacity.setValue(0);
 
     Animated.sequence([
       Animated.parallel([
+        Animated.timing(roundSummaryBackdropOpacity, {
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          toValue: 1,
+          useNativeDriver: true
+        }),
         Animated.timing(roundSummaryOpacity, {
           duration: 220,
           easing: Easing.out(Easing.cubic),
@@ -195,8 +204,14 @@ export default function GameScreen() {
           useNativeDriver: true
         })
       ]),
-      Animated.delay(1700),
+      Animated.delay(5000),
       Animated.parallel([
+        Animated.timing(roundSummaryBackdropOpacity, {
+          duration: 240,
+          easing: Easing.in(Easing.cubic),
+          toValue: 0,
+          useNativeDriver: true
+        }),
         Animated.timing(roundSummaryOpacity, {
           duration: 240,
           easing: Easing.in(Easing.cubic),
@@ -225,6 +240,7 @@ export default function GameScreen() {
     gameMode,
     lastGuessResult,
     room.gameState,
+    roundSummaryBackdropOpacity,
     roundSummaryOpacity,
     roundSummaryTranslateY
   ]);
@@ -294,26 +310,6 @@ export default function GameScreen() {
           <View style={styles.toast}>
             <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
-        ) : null}
-        {showRoundSummary && gameMode === "versus" && lastGuessResult ? (
-          <Animated.View
-            style={[
-              styles.roundSummaryPopup,
-              {
-                opacity: roundSummaryOpacity,
-                transform: [{ translateY: roundSummaryTranslateY }]
-              }
-            ]}
-          >
-            <Text style={styles.roundSummaryTitle}>Round {lastGuessResult.roundNumber} completed</Text>
-            <Text style={styles.roundSummaryText}>
-              Your guess: {lastGuessResult.guess ?? "No guess"}
-            </Text>
-            <Text style={styles.roundSummaryText}>
-              Opponent guess: {lastGuessResult.opponentGuess ?? "No guess"}
-            </Text>
-            {roundSummaryHint ? <Text style={styles.roundSummaryHint}>{roundSummaryHint}</Text> : null}
-          </Animated.View>
         ) : null}
         <Text style={styles.title}>
           {gameMode === "versus" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the secret number"}
@@ -409,6 +405,36 @@ export default function GameScreen() {
           ))
         )}
       </View>
+
+      {showRoundSummary && gameMode === "versus" && lastGuessResult ? (
+        <Animated.View style={[styles.roundSummaryOverlay, { opacity: roundSummaryBackdropOpacity }]}>
+          <Animated.View
+            style={[
+              styles.roundSummaryPopup,
+              {
+                opacity: roundSummaryOpacity,
+                transform: [{ translateY: roundSummaryTranslateY }]
+              }
+            ]}
+          >
+            <Text style={styles.roundSummaryTitle}>Round {lastGuessResult.roundNumber} completed</Text>
+            <Text style={styles.roundSummaryPrimary}>
+              Your guess: {lastGuessResult.guess ?? "No guess"}
+            </Text>
+            {roundSummaryHint ? (
+              <View style={styles.roundSummaryHintRow}>
+                <Ionicons color={roundSummaryHint.color} name={roundSummaryHint.icon} size={18} />
+                <Text style={[styles.roundSummaryHint, { color: roundSummaryHint.color }]}>
+                  {roundSummaryHint.label}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={styles.roundSummarySecondary}>
+              Opponent guess: {lastGuessResult.opponentGuess ?? "No guess"}
+            </Text>
+          </Animated.View>
+        </Animated.View>
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -471,13 +497,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600"
   },
+  roundSummaryOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    backgroundColor: "rgba(8, 17, 31, 0.62)",
+    justifyContent: "center",
+    padding: spacing.lg
+  },
   roundSummaryPopup: {
-    alignSelf: "stretch",
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.accent,
     borderRadius: 20,
-    padding: spacing.md,
+    maxWidth: 420,
+    padding: spacing.lg,
     gap: spacing.xs,
     shadowColor: "#000000",
     shadowOpacity: 0.18,
@@ -493,12 +526,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800"
   },
-  roundSummaryText: {
+  roundSummaryPrimary: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: "600"
+    fontSize: 18,
+    fontWeight: "700"
   },
   roundSummaryHint: {
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20
+  },
+  roundSummaryHintRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xs
+  },
+  roundSummarySecondary: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20
