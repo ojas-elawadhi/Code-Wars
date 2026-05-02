@@ -5,13 +5,13 @@ import { StyleSheet, Text, View } from "react-native";
 import { PlayerList } from "../components/PlayerList";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { useGameStore } from "../store/useGameStore";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
 
-export default function ResultScreen() {
-  const player = useGameStore((state) => state.player);
-  const room = useGameStore((state) => state.room);
-  const resetRoundState = useGameStore((state) => state.resetRoundState);
+export default function OnlineResultScreen() {
+  const player = useOnlineGameStore((state) => state.player);
+  const room = useOnlineGameStore((state) => state.room);
+  const resetRoundState = useOnlineGameStore((state) => state.resetRoundState);
 
   useEffect(() => {
     if (!player || !room) {
@@ -20,7 +20,7 @@ export default function ResultScreen() {
     }
 
     if (room.gameState === "playing") {
-      router.replace("/game");
+      router.replace("/online-game");
     }
   }, [player, room]);
 
@@ -35,7 +35,7 @@ export default function ResultScreen() {
 
   const handlePlayAgain = () => {
     resetRoundState();
-    router.replace("/lobby");
+    router.replace("/online-lobby");
   };
 
   return (

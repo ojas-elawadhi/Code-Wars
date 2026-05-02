@@ -1,18 +1,18 @@
 import { create } from "zustand";
 
 import type {
-  GameMode,
   GameOverPayload,
   GameStartedPayload,
   GameState,
   GuessHistoryItem,
   GuessResultPayload,
+  OnlineMode,
   Player,
   PublicRoom,
   RoundStatus
 } from "../types/game.types";
 
-interface GameStore {
+interface OnlineGameStore {
   player: Player | null;
   room: PublicRoom | null;
   gameState: GameState;
@@ -24,7 +24,7 @@ interface GameStore {
   setConnectionStatus: (isConnected: boolean) => void;
   setErrorMessage: (message: string | null) => void;
   setPersonalSecretNumber: (value: number | null) => void;
-  setSession: (player: Player, room: PublicRoom, fallbackGameMode?: GameMode) => void;
+  setSession: (player: Player, room: PublicRoom, fallbackMode?: OnlineMode) => void;
   setRoom: (room: PublicRoom) => void;
   setGameStarted: (payload: GameStartedPayload) => void;
   setGuessResult: (payload: GuessResultPayload) => void;
@@ -47,18 +47,18 @@ const initialState = {
 const normalizeRoom = (
   room: PublicRoom,
   options?: {
-    fallbackGameMode?: GameMode;
+    fallbackMode?: OnlineMode;
     previousRoom?: PublicRoom | null;
   }
 ): PublicRoom => {
   const legacyRoom = room as Partial<PublicRoom>;
-  const gameMode: GameMode =
-    legacyRoom.gameMode ?? options?.previousRoom?.gameMode ?? options?.fallbackGameMode ?? "friends";
+  const mode: OnlineMode =
+    legacyRoom.mode ?? options?.previousRoom?.mode ?? options?.fallbackMode ?? "classic";
 
   return {
     ...room,
-    gameMode,
-    maxPlayers: legacyRoom.maxPlayers ?? options?.previousRoom?.maxPlayers ?? (gameMode === "versus" ? 2 : 6),
+    mode,
+    maxPlayers: legacyRoom.maxPlayers ?? options?.previousRoom?.maxPlayers ?? (mode === "duel" ? 2 : 6),
     winner: legacyRoom.winner ?? options?.previousRoom?.winner ?? null,
     winnerIds:
       legacyRoom.winnerIds ??
@@ -75,15 +75,15 @@ const normalizeRoom = (
   };
 };
 
-export const useGameStore = create<GameStore>((set) => ({
+export const useOnlineGameStore = create<OnlineGameStore>((set) => ({
   ...initialState,
   setConnectionStatus: (isConnected) => set({ isConnected }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
   setPersonalSecretNumber: (personalSecretNumber) => set({ personalSecretNumber }),
-  setSession: (player, room, fallbackGameMode) =>
+  setSession: (player, room, fallbackMode) =>
     set({
       player,
-      room: normalizeRoom(room, { fallbackGameMode }),
+      room: normalizeRoom(room, { fallbackMode }),
       gameState: room.gameState,
       personalSecretNumber: null,
       errorMessage: null

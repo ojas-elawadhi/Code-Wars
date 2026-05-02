@@ -101,7 +101,7 @@ export const registerGameSocketHandlers = (
           id: socket.id,
           name: payload.playerName.trim()
         };
-        const room = gameService.createRoom(player, payload.gameMode);
+        const room = gameService.createRoom(player, payload.mode);
 
         socket.join(room.roomId);
         io.to(room.roomId).emit("room_update", { room });

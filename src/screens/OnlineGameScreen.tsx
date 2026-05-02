@@ -6,11 +6,11 @@ import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import { makeGuess, setSecretNumber } from "../socket/socket";
-import { useGameStore } from "../store/useGameStore";
+import { makeGuess, setSecretNumber } from "../socket/onlineSocket";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
 
-export default function GameScreen() {
+export default function OnlineGameScreen() {
   const [guess, setGuess] = useState("");
   const [secretNumber, setSecretNumberInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,14 +19,14 @@ export default function GameScreen() {
   const [showRoundSummary, setShowRoundSummary] = useState(false);
   const [canNavigateToResult, setCanNavigateToResult] = useState(false);
 
-  const player = useGameStore((state) => state.player);
-  const room = useGameStore((state) => state.room);
-  const lastGuessResult = useGameStore((state) => state.lastGuessResult);
-  const guessHistory = useGameStore((state) => state.guessHistory);
-  const personalSecretNumber = useGameStore((state) => state.personalSecretNumber);
-  const errorMessage = useGameStore((state) => state.errorMessage);
-  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
-  const setPersonalSecretNumber = useGameStore((state) => state.setPersonalSecretNumber);
+  const player = useOnlineGameStore((state) => state.player);
+  const room = useOnlineGameStore((state) => state.room);
+  const lastGuessResult = useOnlineGameStore((state) => state.lastGuessResult);
+  const guessHistory = useOnlineGameStore((state) => state.guessHistory);
+  const personalSecretNumber = useOnlineGameStore((state) => state.personalSecretNumber);
+  const errorMessage = useOnlineGameStore((state) => state.errorMessage);
+  const setErrorMessage = useOnlineGameStore((state) => state.setErrorMessage);
+  const setPersonalSecretNumber = useOnlineGameStore((state) => state.setPersonalSecretNumber);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const previousOpponentReadyRef = useRef(false);
   const previousRoundStatusRef = useRef<string | null>(null);
@@ -42,11 +42,11 @@ export default function GameScreen() {
     }
 
     if (room.gameState === "finished") {
-      if ((room.gameMode ?? "friends") === "versus" && !canNavigateToResult) {
+      if ((room.mode ?? "classic") === "duel" && !canNavigateToResult) {
         return;
       }
 
-      router.replace("/result");
+      router.replace("/online-result");
     }
   }, [canNavigateToResult, player, room]);
 
@@ -108,12 +108,12 @@ export default function GameScreen() {
   }, [toastMessage]);
 
   const latestFeedback = !lastGuessResult
-    ? room?.gameMode === "versus"
+    ? room?.mode === "duel"
       ? "Submit one guess per round to learn whether your opponent's secret number is higher, lower, or correct."
       : "Submit one number this round to get higher, lower, or correct feedback when the timer ends."
     : lastGuessResult.result === "missed"
       ? `You missed round ${lastGuessResult.roundNumber}.`
-      : room?.gameMode === "versus"
+      : room?.mode === "duel"
         ? `Round ${lastGuessResult.roundNumber}: your guess of ${lastGuessResult.guess} against your opponent's number is ${lastGuessResult.result}.`
         : `Round ${lastGuessResult.roundNumber}: your guess of ${lastGuessResult.guess} is ${lastGuessResult.result}.`;
 
@@ -121,7 +121,7 @@ export default function GameScreen() {
     return null;
   }
 
-  const gameMode = room.gameMode ?? "friends";
+  const mode = room.mode ?? "classic";
   const submittedPlayerIds = room.submittedPlayerIds ?? [];
   const secretSubmittedPlayerIds = room.secretSubmittedPlayerIds ?? [];
   const roundDurationSeconds = room.roundDurationSeconds ?? 15;
@@ -129,12 +129,12 @@ export default function GameScreen() {
   const hasSubmittedSecret = secretSubmittedPlayerIds.includes(player.id);
   const opponentHasSubmittedSecret = secretSubmittedPlayerIds.some((playerId) => playerId !== player.id);
   const isCollecting = room.roundStatus === "collecting";
-  const isSecretSetup = gameMode === "versus" && room.roundStatus === "setup";
+  const isSecretSetup = mode === "duel" && room.roundStatus === "setup";
   const secondsRemaining = room.roundEndsAt
     ? Math.max(0, Math.ceil((room.roundEndsAt - currentTime) / 1000))
     : 0;
   const roundSummaryHint =
-    !lastGuessResult || gameMode !== "versus"
+    !lastGuessResult || mode !== "duel"
       ? null
       : lastGuessResult.result === "missed"
         ? { label: "No Guess", icon: "remove" as const, color: colors.textMuted }
@@ -145,7 +145,7 @@ export default function GameScreen() {
             : { label: "Correct", icon: "checkmark" as const, color: colors.success };
 
   useEffect(() => {
-    if (gameMode !== "versus") {
+    if (mode !== "duel") {
       previousOpponentReadyRef.current = false;
       previousRoundStatusRef.current = room.roundStatus;
       return;
@@ -165,10 +165,10 @@ export default function GameScreen() {
 
     previousOpponentReadyRef.current = opponentHasSubmittedSecret;
     previousRoundStatusRef.current = room.roundStatus;
-  }, [gameMode, opponentHasSubmittedSecret, personalSecretNumber, room.roundStatus]);
+  }, [mode, opponentHasSubmittedSecret, personalSecretNumber, room.roundStatus]);
 
   useEffect(() => {
-    if (gameMode !== "versus" || !lastGuessResult) {
+    if (mode !== "duel" || !lastGuessResult) {
       return;
     }
 
@@ -237,7 +237,7 @@ export default function GameScreen() {
       }
     });
   }, [
-    gameMode,
+    mode,
     lastGuessResult,
     room.gameState,
     roundSummaryBackdropOpacity,
@@ -300,7 +300,7 @@ export default function GameScreen() {
     <ScreenContainer>
       <View style={styles.header}>
         <Text style={styles.label}>{isSecretSetup ? "Secret setup" : "Round live"}</Text>
-        {gameMode === "versus" && personalSecretNumber !== null ? (
+        {mode === "duel" && personalSecretNumber !== null ? (
           <View style={styles.secretBanner}>
             <Text style={styles.secretBannerLabel}>Your secret number</Text>
             <Text style={styles.secretBannerValue}>{personalSecretNumber}</Text>
@@ -312,10 +312,10 @@ export default function GameScreen() {
           </View>
         ) : null}
         <Text style={styles.title}>
-          {gameMode === "versus" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the secret number"}
+          {mode === "duel" ? (isSecretSetup ? "Choose your secret number" : "Guess your opponent's number") : "Guess the target number"}
         </Text>
         <Text style={styles.subtitle}>
-          {gameMode === "versus"
+          {mode === "duel"
             ? isSecretSetup
               ? "Pick a number from 1 to 100. Your opponent will try to guess it while you try to guess theirs."
               : `Each round lasts ${roundDurationSeconds} seconds. Submit one number from 1 to 100 to guess your opponent's secret.`
@@ -369,7 +369,7 @@ export default function GameScreen() {
             <TextField
               editable={isCollecting && !hasSubmitted}
               keyboardType="numeric"
-              label={gameMode === "versus" ? "Your guess for the other player" : "Your guess"}
+              label={mode === "duel" ? "Your guess for the other player" : "Your guess"}
               maxLength={3}
               onChangeText={setGuess}
               placeholder={isCollecting && !hasSubmitted ? "Pick a number" : "Wait for the next round"}
@@ -406,7 +406,7 @@ export default function GameScreen() {
         )}
       </View>
 
-      {showRoundSummary && gameMode === "versus" && lastGuessResult ? (
+      {showRoundSummary && mode === "duel" && lastGuessResult ? (
         <Animated.View style={[styles.roundSummaryOverlay, { opacity: roundSummaryBackdropOpacity }]}>
           <Animated.View
             style={[

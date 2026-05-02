@@ -8,19 +8,19 @@ import { TextField } from "../components/TextField";
 import type { GuessFeedback } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
 
-interface SoloGuessEntry {
+interface PracticeGuessEntry {
   guess: number;
   result: GuessFeedback;
 }
 
 const randomNumber = () => Math.floor(Math.random() * 100) + 1;
 
-export default function SoloClassicScreen() {
+export default function PracticeScreen() {
   const [secretNumber, setSecretNumber] = useState(randomNumber);
   const [guess, setGuess] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [lastResult, setLastResult] = useState<SoloGuessEntry | null>(null);
-  const [guessHistory, setGuessHistory] = useState<SoloGuessEntry[]>([]);
+  const [lastResult, setLastResult] = useState<PracticeGuessEntry | null>(null);
+  const [guessHistory, setGuessHistory] = useState<PracticeGuessEntry[]>([]);
   const [isComplete, setIsComplete] = useState(false);
 
   const latestFeedback = useMemo(() => {
@@ -49,7 +49,7 @@ export default function SoloClassicScreen() {
     const entry = {
       guess: parsedGuess,
       result
-    } satisfies SoloGuessEntry;
+    } satisfies PracticeGuessEntry;
 
     setLastResult(entry);
     setGuessHistory((currentHistory) => [entry, ...currentHistory].slice(0, 12));
@@ -77,8 +77,8 @@ export default function SoloClassicScreen() {
       </Pressable>
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Solo Classic</Text>
-        <Text style={styles.title}>Guess The Hidden Number</Text>
+        <Text style={styles.eyebrow}>Practice</Text>
+        <Text style={styles.title}>Single Player</Text>
         <Text style={styles.subtitle}>
           The game picked a number from 1 to 100. Keep guessing until you find it.
         </Text>
@@ -112,7 +112,7 @@ export default function SoloClassicScreen() {
       {isComplete ? (
         <View style={styles.successCard}>
           <Text style={styles.successTitle}>You found it in {guessHistory.length} guesses.</Text>
-          <Text style={styles.successText}>Start a fresh solo round or head back to Solo mode.</Text>
+          <Text style={styles.successText}>Start a fresh practice round or head back home.</Text>
           <PrimaryButton label="Play Again" onPress={handlePlayAgain} />
         </View>
       ) : null}

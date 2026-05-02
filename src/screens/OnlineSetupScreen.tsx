@@ -5,34 +5,34 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { TextField } from "../components/TextField";
-import { createRoom, joinRoom } from "../socket/socket";
-import { useGameStore } from "../store/useGameStore";
-import type { GameMode } from "../types/game.types";
+import { createRoom, joinRoom } from "../socket/onlineSocket";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
+import type { OnlineMode } from "../types/game.types";
 import { colors, spacing } from "../utils/theme";
 
 type RuleMode = "classic" | "duel";
 
-export default function PrivateSetupScreen() {
+export default function OnlineSetupScreen() {
   const [playerName, setPlayerName] = useState("");
   const [roomId, setRoomId] = useState("");
   const [ruleMode, setRuleMode] = useState<RuleMode>("classic");
   const [loadingAction, setLoadingAction] = useState<"create" | "join" | null>(null);
 
-  const isConnected = useGameStore((state) => state.isConnected);
-  const errorMessage = useGameStore((state) => state.errorMessage);
-  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
-  const setSession = useGameStore((state) => state.setSession);
+  const isConnected = useOnlineGameStore((state) => state.isConnected);
+  const errorMessage = useOnlineGameStore((state) => state.errorMessage);
+  const setErrorMessage = useOnlineGameStore((state) => state.setErrorMessage);
+  const setSession = useOnlineGameStore((state) => state.setSession);
 
-  const privateGameMode: GameMode = ruleMode === "classic" ? "friends" : "versus";
+  const onlineMode: OnlineMode = ruleMode;
 
   const handleCreateRoom = async () => {
     try {
       setLoadingAction("create");
       setErrorMessage(null);
 
-      const response = await createRoom(playerName.trim(), privateGameMode);
-      setSession(response.player, response.room, privateGameMode);
-      router.replace("/lobby");
+      const response = await createRoom(playerName.trim(), onlineMode);
+      setSession(response.player, response.room, onlineMode);
+      router.replace("/online-lobby");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not create room.");
     } finally {
@@ -47,7 +47,7 @@ export default function PrivateSetupScreen() {
 
       const response = await joinRoom(roomId.trim().toUpperCase(), playerName.trim());
       setSession(response.player, response.room);
-      router.replace("/lobby");
+      router.replace("/online-lobby");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not join room.");
     } finally {
@@ -65,10 +65,10 @@ export default function PrivateSetupScreen() {
       </Pressable>
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Private</Text>
+        <Text style={styles.eyebrow}>Online</Text>
         <Text style={styles.title}>Choose A Mode</Text>
         <Text style={styles.subtitle}>
-          Pick the room style first, then create a private room or join one with a code.
+          Pick the room style first, then create a room or join one with a code.
         </Text>
       </View>
 
@@ -109,7 +109,7 @@ export default function PrivateSetupScreen() {
 
         <PrimaryButton
           disabled={!canCreate}
-          label={ruleMode === "classic" ? "Create Private Classic Room" : "Create Private Duel Room"}
+          label={ruleMode === "classic" ? "Create Online Classic Room" : "Create Online Duel Room"}
           loading={loadingAction === "create"}
           onPress={handleCreateRoom}
         />
@@ -127,7 +127,7 @@ export default function PrivateSetupScreen() {
 
         <PrimaryButton
           disabled={!canJoin}
-          label="Join Private Room"
+          label="Join Online Room"
           loading={loadingAction === "join"}
           onPress={handleJoinRoom}
           variant="secondary"

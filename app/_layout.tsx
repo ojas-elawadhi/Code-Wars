@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 
-import { connectSocket } from "../src/socket/socket";
+import { connectSocket } from "../src/socket/onlineSocket";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -19,4 +19,3 @@ export default function RootLayout() {
     />
   );
 }
-

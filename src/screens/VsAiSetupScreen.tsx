@@ -8,9 +8,9 @@ import { colors, spacing } from "../utils/theme";
 
 type RuleMode = "classic" | "duel";
 
-export default function SoloSetupScreen() {
-  const [ruleMode, setRuleMode] = useState<RuleMode>("classic");
-  const isClassic = ruleMode === "classic";
+export default function VsAiSetupScreen() {
+  const [ruleMode, setRuleMode] = useState<RuleMode>("duel");
+  const isClassicComingSoon = ruleMode === "classic";
 
   return (
     <ScreenContainer>
@@ -19,10 +19,10 @@ export default function SoloSetupScreen() {
       </Pressable>
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Solo</Text>
+        <Text style={styles.eyebrow}>VS AI</Text>
         <Text style={styles.title}>Choose A Mode</Text>
         <Text style={styles.subtitle}>
-          Solo mode is the next feature to build. The structure is ready so we can wire Classic and Duel one by one.
+          Pick whether you want to race the AI toward one shared target or duel with secret numbers.
         </Text>
       </View>
 
@@ -37,7 +37,7 @@ export default function SoloSetupScreen() {
             ]}
           >
             <Text style={styles.modeTitle}>Classic</Text>
-            <Text style={styles.modeText}>Guess one hidden number on your own.</Text>
+            <Text style={styles.modeText}>You and the AI race to one shared hidden number. Coming soon.</Text>
           </Pressable>
 
           <Pressable
@@ -49,24 +49,24 @@ export default function SoloSetupScreen() {
             ]}
           >
             <Text style={styles.modeTitle}>Duel</Text>
-            <Text style={styles.modeText}>Face a CPU that hides its own secret number.</Text>
+            <Text style={styles.modeText}>You and the AI protect your own secret numbers and guess each other.</Text>
           </Pressable>
         </View>
 
         <PrimaryButton
-          disabled={!isClassic}
-          label={isClassic ? "Play Solo Classic" : "Solo Duel Coming Next"}
+          disabled={isClassicComingSoon}
+          label={isClassicComingSoon ? "VS AI Classic Coming Soon" : "Play VS AI Duel"}
           onPress={() => {
-            if (isClassic) {
-              router.push("/solo-classic");
+            if (!isClassicComingSoon) {
+              router.push("/vs-ai-duel");
             }
           }}
         />
 
         <Text style={styles.helper}>
-          {isClassic
-            ? "Solo Classic is ready to play. Solo Duel is the next mode to build."
-            : "Solo Duel is the next solo mode to build."}
+          {isClassicComingSoon
+            ? "VS AI Classic will let you and the AI chase the same hidden number."
+            : "VS AI Duel is ready now if you want alternating secret-number guesses."}
         </Text>
       </View>
     </ScreenContainer>

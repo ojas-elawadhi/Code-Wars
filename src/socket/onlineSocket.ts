@@ -1,10 +1,10 @@
 import { io, type Socket } from "socket.io-client";
 
-import { useGameStore } from "../store/useGameStore";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import type {
   ClientToServerEvents,
   CreateOrJoinRoomResponse,
-  GameMode,
+  OnlineMode,
   ServerToClientEvents,
   SocketAck,
   StartGameResponse
@@ -95,27 +95,27 @@ const bindListeners = (activeSocket: Socket<ServerToClientEvents, ClientToServer
   }
 
   activeSocket.on("connect", () => {
-    useGameStore.getState().setConnectionStatus(true);
+    useOnlineGameStore.getState().setConnectionStatus(true);
   });
 
   activeSocket.on("disconnect", () => {
-    useGameStore.getState().setConnectionStatus(false);
+    useOnlineGameStore.getState().setConnectionStatus(false);
   });
 
   activeSocket.on("room_update", ({ room }) => {
-    useGameStore.getState().setRoom(room);
+    useOnlineGameStore.getState().setRoom(room);
   });
 
   activeSocket.on("game_started", (payload) => {
-    useGameStore.getState().setGameStarted(payload);
+    useOnlineGameStore.getState().setGameStarted(payload);
   });
 
   activeSocket.on("guess_result", (payload) => {
-    useGameStore.getState().setGuessResult(payload);
+    useOnlineGameStore.getState().setGuessResult(payload);
   });
 
   activeSocket.on("game_over", (payload) => {
-    useGameStore.getState().setGameOver(payload);
+    useOnlineGameStore.getState().setGameOver(payload);
   });
 
   listenersBound = true;
@@ -143,11 +143,11 @@ export const connectSocket = () => {
   return activeSocket;
 };
 
-export const createRoom = async (playerName: string, gameMode: GameMode) => {
+export const createRoom = async (playerName: string, mode: OnlineMode) => {
   const activeSocket = await ensureConnected();
 
   return emitWithAck<CreateOrJoinRoomResponse>((ack) => {
-    activeSocket.emit("create_room", { playerName, gameMode }, ack);
+    activeSocket.emit("create_room", { playerName, mode }, ack);
   });
 };
 

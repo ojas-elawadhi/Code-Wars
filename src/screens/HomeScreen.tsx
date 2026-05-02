@@ -2,12 +2,12 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ScreenContainer } from "../components/ScreenContainer";
-import { useGameStore } from "../store/useGameStore";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
 
 export default function HomeScreen() {
-  const isConnected = useGameStore((state) => state.isConnected);
-  const errorMessage = useGameStore((state) => state.errorMessage);
+  const isConnected = useOnlineGameStore((state) => state.isConnected);
+  const errorMessage = useOnlineGameStore((state) => state.errorMessage);
 
   return (
     <ScreenContainer>
@@ -15,32 +15,43 @@ export default function HomeScreen() {
         <Text style={styles.eyebrow}>Game Modes</Text>
         <Text style={styles.title}>Higher or Lower</Text>
         <Text style={styles.subtitle}>
-          Pick how you want to play first, then we&apos;ll take you to the right mode setup.
+          Choose who you want to play with, then we&apos;ll take you to the right setup flow.
         </Text>
       </View>
 
       <View style={styles.card}>
         <View style={styles.modeRow}>
           <Pressable
-            onPress={() => router.push("/solo")}
+            onPress={() => router.push("/practice")}
             style={({ pressed }) => [
               styles.modeCard,
               pressed && styles.modeCardPressed
             ]}
           >
-            <Text style={styles.modeTitle}>Solo</Text>
-            <Text style={styles.modeText}>Play against the game, then choose Classic or Duel on the next screen.</Text>
+            <Text style={styles.modeTitle}>Single Player</Text>
+            <Text style={styles.modeText}>Practice by guessing one hidden number on your own.</Text>
           </Pressable>
 
           <Pressable
-            onPress={() => router.push("/private")}
+            onPress={() => router.push("/vs-ai")}
             style={({ pressed }) => [
               styles.modeCard,
               pressed && styles.modeCardPressed
             ]}
           >
-            <Text style={styles.modeTitle}>Private</Text>
-            <Text style={styles.modeText}>Create a room code, invite friends, then choose Classic or Duel on the next screen.</Text>
+            <Text style={styles.modeTitle}>VS AI</Text>
+            <Text style={styles.modeText}>Choose Classic or Duel against the AI on the next screen.</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/online")}
+            style={({ pressed }) => [
+              styles.modeCard,
+              pressed && styles.modeCardPressed
+            ]}
+          >
+            <Text style={styles.modeTitle}>Online</Text>
+            <Text style={styles.modeText}>Create a room or join with a code, then pick Classic or Duel.</Text>
           </Pressable>
         </View>
       </View>

@@ -7,19 +7,19 @@ import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { PlayerList } from "../components/PlayerList";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { leaveRoom, startGame } from "../socket/socket";
-import { useGameStore } from "../store/useGameStore";
+import { leaveRoom, startGame } from "../socket/onlineSocket";
+import { useOnlineGameStore } from "../store/useOnlineGameStore";
 import { colors, spacing } from "../utils/theme";
 
-export default function LobbyScreen() {
+export default function OnlineLobbyScreen() {
   const [isStarting, setIsStarting] = useState(false);
   const [copySuccessMessage, setCopySuccessMessage] = useState<string | null>(null);
 
-  const player = useGameStore((state) => state.player);
-  const room = useGameStore((state) => state.room);
-  const errorMessage = useGameStore((state) => state.errorMessage);
-  const setErrorMessage = useGameStore((state) => state.setErrorMessage);
-  const resetAll = useGameStore((state) => state.resetAll);
+  const player = useOnlineGameStore((state) => state.player);
+  const room = useOnlineGameStore((state) => state.room);
+  const errorMessage = useOnlineGameStore((state) => state.errorMessage);
+  const setErrorMessage = useOnlineGameStore((state) => state.setErrorMessage);
+  const resetAll = useOnlineGameStore((state) => state.resetAll);
 
   const isHost = useMemo(() => {
     if (!player || !room) {
@@ -36,7 +36,7 @@ export default function LobbyScreen() {
     }
 
     if (room.gameState === "playing") {
-      router.replace("/game");
+      router.replace("/online-game");
     }
   }, [player, room]);
 
@@ -45,18 +45,18 @@ export default function LobbyScreen() {
   }
 
   const winnerIds = room.winnerIds ?? [];
-  const gameMode = room.gameMode ?? "friends";
-  const maxPlayers = room.maxPlayers ?? (gameMode === "versus" ? 2 : 6);
+  const mode = room.mode ?? "classic";
+  const maxPlayers = room.maxPlayers ?? (mode === "duel" ? 2 : 6);
   const lastWinner = room.players.find((currentPlayer) => currentPlayer.id === room.winner);
   const hasTie = winnerIds.length > 1;
-  const canStart = gameMode === "versus" ? room.players.length === 2 : room.players.length >= 2;
-  const roomModeLabel = gameMode === "versus" ? "Private Duel" : "Private Classic";
+  const canStart = mode === "duel" ? room.players.length === 2 : room.players.length >= 2;
+  const roomModeLabel = mode === "duel" ? "Online Duel" : "Online Classic";
   const infoMessage =
-    gameMode === "versus"
+    mode === "duel"
       ? room.players.length < 2
         ? room.players.length === 1
           ? "Waiting for other player to join the duel."
-          : "Versus mode needs exactly 2 players before the host can start."
+          : "Duel mode needs exactly 2 players before the host can start."
         : "Each player chooses a secret number, then both players get one guess per 15-second round to crack the other number."
       : room.players.length < 2
         ? "At least 2 players are needed to start."
@@ -94,7 +94,7 @@ export default function LobbyScreen() {
 
   const handleShareCode = async () => {
     await Share.share({
-      message: `Join my Higher or Lower room with code: ${room.roomId}`
+      message: `Join my Higher or Lower online room with code: ${room.roomId}`
     });
   };
 
@@ -128,7 +128,7 @@ export default function LobbyScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Players</Text>
-        {gameMode === "friends" ? <Text style={styles.copy}>{room.players.length}/{maxPlayers} joined</Text> : null}
+        {mode === "classic" ? <Text style={styles.copy}>{room.players.length}/{maxPlayers} joined</Text> : null}
         <PlayerList hostId={room.hostId} players={room.players} winnerId={room.winner} winnerIds={winnerIds} />
       </View>
 
@@ -154,7 +154,7 @@ export default function LobbyScreen() {
           />
         ) : (
           <View style={styles.notice}>
-            <Text style={styles.noticeText}>Waiting for the host to start the round.</Text>
+            <Text style={styles.noticeText}>Waiting for the host to start the match.</Text>
           </View>
         )}
 

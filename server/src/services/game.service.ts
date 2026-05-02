@@ -1,8 +1,8 @@
 import type { Player } from "../types/game.types";
 import type {
-  GameMode,
   GameOverPayload,
   GuessFeedback,
+  OnlineMode,
   PublicRoom,
   RemovePlayerResult,
   ResolveRoundResult,
@@ -10,8 +10,8 @@ import type {
 } from "../types/game.types";
 import type { RoomModel } from "../models/room.model";
 
-const FRIENDS_MAX_PLAYERS = 6;
-const VERSUS_MAX_PLAYERS = 2;
+const CLASSIC_MAX_PLAYERS = 6;
+const DUEL_MAX_PLAYERS = 2;
 const MIN_PLAYERS = 2;
 const ROOM_CODE_LENGTH = 6;
 const GUESS_MIN = 1;
@@ -23,7 +23,7 @@ class GameService {
   private readonly rooms = new Map<string, RoomModel>();
   private readonly playerRooms = new Map<string, string>();
 
-  createRoom(host: Player, gameMode: GameMode): PublicRoom {
+  createRoom(host: Player, mode: OnlineMode): PublicRoom {
     this.validatePlayerName(host.name);
 
     const roomId = this.generateRoomId();
@@ -31,8 +31,8 @@ class GameService {
       roomId,
       players: [host],
       gameState: "waiting",
-      gameMode,
-      maxPlayers: this.getMaxPlayersForMode(gameMode),
+      mode,
+      maxPlayers: this.getMaxPlayersForMode(mode),
       secretNumber: 0,
       playerSecretNumbers: new Map(),
       winner: null,
@@ -84,8 +84,8 @@ class GameService {
       throw new Error("Only the host can start the game.");
     }
 
-    if (room.gameMode === "versus" && room.players.length !== VERSUS_MAX_PLAYERS) {
-      throw new Error("Versus mode needs exactly 2 players.");
+    if (room.mode === "duel" && room.players.length !== DUEL_MAX_PLAYERS) {
+      throw new Error("Duel mode needs exactly 2 players.");
     }
 
     if (room.players.length < MIN_PLAYERS) {
@@ -100,7 +100,7 @@ class GameService {
     room.submittedPlayerIds = [];
     room.roundGuesses.clear();
 
-    if (room.gameMode === "versus") {
+    if (room.mode === "duel") {
       room.roundStatus = "setup";
       room.secretNumber = 0;
       room.playerSecretNumbers.clear();
@@ -123,12 +123,12 @@ class GameService {
       throw new Error("Player is not part of this room.");
     }
 
-    if (room.gameMode !== "versus") {
+    if (room.mode !== "duel") {
       throw new Error("This room does not use player-chosen secret numbers.");
     }
 
     if (room.gameState !== "playing" || room.roundStatus !== "setup") {
-      throw new Error("Secret numbers can only be set at the start of a versus game.");
+      throw new Error("Secret numbers can only be set at the start of a duel game.");
     }
 
     if (room.secretSubmittedPlayerIds.includes(playerId)) {
@@ -201,7 +201,7 @@ class GameService {
     const guessResults = room.players.map((player) => {
       const submittedGuess = room.roundGuesses.get(player.id);
       const opponent =
-        room.gameMode === "versus"
+        room.mode === "duel"
           ? room.players.find((currentPlayer) => currentPlayer.id !== player.id) ?? null
           : null;
       const opponentGuess = opponent ? room.roundGuesses.get(opponent.id) ?? null : null;
@@ -237,7 +237,7 @@ class GameService {
     });
 
     const winnerIds =
-      room.gameMode === "versus"
+      room.mode === "duel"
         ? guessResults.filter((result) => result.result === "correct").map((result) => result.playerId)
         : (() => {
             const firstCorrectPlayerId =
@@ -378,7 +378,7 @@ class GameService {
       roomId: room.roomId,
       players: [...room.players],
       gameState: room.gameState,
-      gameMode: room.gameMode,
+      mode: room.mode,
       maxPlayers: room.maxPlayers,
       winner: room.winner,
       winnerIds: [...room.winnerIds],
@@ -412,11 +412,11 @@ class GameService {
   }
 
   private getTargetNumberForPlayer(room: RoomModel, playerId: string) {
-    if (room.gameMode === "versus") {
+    if (room.mode === "duel") {
       const opponent = room.players.find((player) => player.id !== playerId);
 
       if (!opponent) {
-        throw new Error("Versus mode needs an opponent.");
+        throw new Error("Duel mode needs an opponent.");
       }
 
       const opponentSecret = room.playerSecretNumbers.get(opponent.id);
@@ -431,8 +431,8 @@ class GameService {
     return room.secretNumber;
   }
 
-  private getMaxPlayersForMode(gameMode: GameMode) {
-    return gameMode === "versus" ? VERSUS_MAX_PLAYERS : FRIENDS_MAX_PLAYERS;
+  private getMaxPlayersForMode(mode: OnlineMode) {
+    return mode === "duel" ? DUEL_MAX_PLAYERS : CLASSIC_MAX_PLAYERS;
   }
 
   private requireRoom(roomId: string): RoomModel {
